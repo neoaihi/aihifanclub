@@ -119,7 +119,7 @@
 
     <script type="module">
  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, serverTimestamp, update } 
+  import { getDatabase, ref, push, onValue, serverTimestamp, update, set } 
     from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
   const firebaseConfig = {
@@ -138,59 +138,47 @@
   const dbRef = ref(db, 'chat');
 
   // 投稿ボタンの処理
-  window.addPost = async function() {
+window.addPost = async function() {
     const nameInput = document.getElementById('name');
     const messageInput = document.getElementById('message');
-    const submitBtn = document.querySelector('button'); // 投稿ボタンを取得
+    const submitBtn = document.querySelector('button');
     
     const name = nameInput.value || '名無し';
     const message = messageInput.value;
     
-    if (!message.trim()) {
-      alert('メッセージを入力してください');
-      return;
-    }
+    if (!message.trim()) return;
 
-    // --- UI連投防止：ボタンを5秒間無効化 ---
+    // UIの無効化（5秒）
     submitBtn.disabled = true;
     let timeLeft = 5;
-    const originalText = "[ 投稿 ]";
-    
     const timer = setInterval(() => {
-      timeLeft -= 1;
-      submitBtn.textContent = `待機中 (${timeLeft}s)`;
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-      }
+        timeLeft--;
+        submitBtn.textContent = `待機中 (${timeLeft}s)`;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            submitBtn.disabled = false;
+            submitBtn.textContent = "[ 投稿 ]";
+        }
     }, 1000);
 
-    // --- Firebaseへの同時書き込み処理 ---
-    const timeData = serverTimestamp();
-    const newPostKey = push(ref(db, 'chat')).key; // 新しいIDを生成
-
-    const updates = {};
-    // 1. 新しいメッセージのデータ
-    updates['/chat/' + newPostKey] = {
-      name: name,
-      message: message,
-      time: new Date().toLocaleString('ja-JP'),
-      timestamp: timeData
-    };
-    // 2. 掲示板全体の最終更新時間を更新（ルール突破用）
-    updates['/chat/lastUpdate'] = timeData;
-
     try {
-      await update(ref(db), updates); // まとめて送信
-      messageInput.value = ''; // 成功したらメッセージを消す
+      const timeData = serverTimestamp();
+
+      // 1. メッセージを投稿
+      await push(ref(db, 'chat'), {
+        name: name,
+        message: message,
+        time: new Date().toLocaleString('ja-JP'),
+        timestamp: timeData
+      });
+
+      // 2. 最後に投稿した時間を記録（これが次の投稿を5秒ブロックする）
+      await set(ref(db, 'chat/lastUpdate'), timeData);
+
+      messageInput.value = '';
     } catch (error) {
       console.error(error);
-      if (error.message.includes("Permission denied")) {
-        alert("【システム】連投制限中です。あと数秒待ってから送信してください。");
-      } else {
-        alert("投稿に失敗しました。設定を確認してください。");
-      }
+      alert("連投制限中、または通信エラーです。");
     }
   };
 
