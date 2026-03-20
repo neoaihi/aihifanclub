@@ -159,6 +159,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 
     const timeData = serverTimestamp();
     const newPostKey = push(dbRef).key; // 投稿用の新しいIDを発行
+    const fingerprint = btoa(navigator.userAgent + screen.width + screen.height);
 
     // 【重要】メッセージとタイマーを同時に更新（Atomic Update）
     const updates = {};
@@ -167,9 +168,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       message: msgEl.value,
       time: new Date().toLocaleString('ja-JP'),
       timestamp: timeData,
-      browserId: browserId // ルール照合用
+      browserId: browserId,
+      fingerprint: fingerprint // ルール照合用
     };
     updates[`/user_timers/${browserId}`] = timeData;
+    updates[`/fingerprint_check/${fingerprint}`] = timeData;
 
     try {
       await update(ref(db), updates); 
