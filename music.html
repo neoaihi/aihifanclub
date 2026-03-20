@@ -21,7 +21,7 @@
 <body>
 
     <div class="player-container">
-        <h1>[ DRIVE BGM ]</h1>
+        <h1>[ BGM PLAYER ]</h1>
         
         <div id="display-area">
             <p>NOW PLAYING:</p>
@@ -29,6 +29,10 @@
         </div>
 
         <hr>
+
+        <div id="description-area" style="text-align: left; background: #111; padding: 10px; border: 1px solid #004400; min-height: 80px; font-size: 0.9em; white-space: pre-wrap;">
+        BGM is not selected.
+            </div>
 
         <div class="playlist" id="playlist-container">
             </div>
@@ -42,7 +46,7 @@
         <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5" oninput="setVolume(this.value)">
     </div>
 
-    <p><a href="index.html" style="color: white;">TOPへ戻る</a></p>
+    <p><a href="index.html" style="color: white;">トップへ戻る</a></p>
 
     <audio id="bgm" loop></audio>
 
@@ -70,12 +74,32 @@
         });
 
         // 曲を読み込む関数
-        function loadSong(index) {
+        const descriptionArea = document.getElementById('description-area');
+
+        async function loadSong(index) {
             const song = songs[index];
+    
+            // 1. 音楽の読み込み
             audio.src = song.file;
             currentTitle.textContent = song.title;
-            
-            // 再生中表示の更新
+    
+            // 2. テキストファイルの読み込み (fetch)
+            // ファイル名の拡張子を .txt に入れ替えて読み込みに行きます
+            const textFile = song.file.substring(0, song.file.lastIndexOf('.')) + ".txt";
+    
+            try {
+                const response = await fetch(textFile);
+                if (response.ok) {
+                    const text = await response.text();
+                    descriptionArea.textContent = text;
+                } else {
+                    descriptionArea.textContent = "（解説テキストが見つかりませんでした）";
+                }
+            } catch (error) {
+                descriptionArea.textContent = "（テキストの読み込みに失敗しました）";
+            }
+
+            // 3. 再生中表示の更新
             const items = document.querySelectorAll('.track-item');
             items.forEach(item => item.classList.remove('active-track'));
             items[index].classList.add('active-track');
@@ -100,6 +124,5 @@
             audio.volume = val;
         }
     </script>
-    <a href="index.html">トップに戻る</a>
 </body>
 </html>

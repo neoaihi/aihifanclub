@@ -109,7 +109,7 @@
     <h1>★ 掲示板 ★</h1>
     <div class="post-form">
         <input type="text" id="name" placeholder="名前 (名無しでも可)">
-        <textarea id="message" placeholder="メッセージを入力してください" rows="4"></textarea>
+        <textarea id="message" placeholder="メッセージを入力してください（200文字まで可）" rows="4"></textarea>
         <button onclick="addPost()">[ 投稿 ]</button>
     </div>
     <div class="posts" id="posts"></div>
@@ -123,7 +123,7 @@
   import { getDatabase, ref, push, onValue, serverTimestamp } 
     from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  // 【重要】ステップ1でメモした自分の設定に書き換えてください
+  // Firebase code
   const firebaseConfig = {
     apiKey: "AIzaSyC3bNkmqjyKxSulJPpmM3WFGAsa4eFKHCE",
     authDomain: "board-323ec.firebaseapp.com",
