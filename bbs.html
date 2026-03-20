@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>掲示板</title>
+    <style>
+        body {
+            font-family: "MS Pゴシック", "MS P Gothic", sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 10px;
+            background-color: #000;
+            color: #0f0;
+        }
+        h1 {
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+            border: 2px solid #0f0;
+            padding: 10px;
+            text-align: center;
+            font-size: 24px;
+        }
+        .post-form {
+            background-color: #111;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #0f0;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            border: 1px solid #0f0;
+            border-radius: 0;
+            box-sizing: border-box;
+            background-color: #000;
+            color: #0f0;
+            font-family: "MS Pゴシック", "MS P Gothic", monospace;
+            font-size: 12px;
+        }
+        button {
+            background-color: #0f0;
+            color: #000;
+            padding: 8px 20px;
+            border: 2px solid #0f0;
+            border-radius: 0;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: "MS Pゴシック", "MS P Gothic", sans-serif;
+        }
+        button:hover {
+            background-color: #000;
+            color: #0f0;
+        }
+        .posts {
+            display: flex;
+            flex-direction: column-reverse;
+        }
+        .post {
+            background-color: #111;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 2px solid #0f0;
+            color: #0f0;
+            font-size: 12px;
+        }
+        .post-number {
+            display: inline-block;
+            background-color: #0f0;
+            color: #000;
+            padding: 2px 6px;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+        .post-header {
+            margin-bottom: 8px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 5px;
+        }
+        .post-name {
+            font-weight: bold;
+        }
+        .post-time {
+            font-size: 10px;
+            color: #080;
+        }
+        .post-message {
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #0f0;
+        }
+        .back-link a {
+            color: #0f0;
+            text-decoration: underline;
+        }
+        .back-link a:hover {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>★ 掲示板 ★</h1>
+    <div class="post-form">
+        <input type="text" id="name" placeholder="名前 (名無しでも可)">
+        <textarea id="message" placeholder="メッセージを入力してください" rows="4"></textarea>
+        <button onclick="addPost()">[ 投稿 ]</button>
+    </div>
+    <div class="posts" id="posts"></div>
+    <div class="back-link">
+        <a href="index.html">[ トップに戻る ]</a>
+    </div>
+
+    <script>
+        function addPost() {
+            const name = document.getElementById('name').value || '名無し';
+            const message = document.getElementById('message').value;
+            
+            if (!message.trim()) {
+                alert('メッセージを入力してください');
+                return;
+            }
+            
+            const post = {
+                name: name,
+                message: message,
+                time: new Date().toLocaleString('ja-JP')
+            };
+            
+            let posts = JSON.parse(localStorage.getItem('posts')) || [];
+            posts.push(post);
+            localStorage.setItem('posts', JSON.stringify(posts));
+            
+            displayPosts();
+            document.getElementById('name').value = '';
+            document.getElementById('message').value = '';
+        }
+        
+        function displayPosts() {
+            const posts = JSON.parse(localStorage.getItem('posts')) || [];
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = posts.map((post, index) => `
+                <div class="post">
+                    <div class="post-header">
+                        <span class="post-number">${index + 1}</span>
+                        <span class="post-name">${post.name}</span>
+                        <div class="post-time">${post.time}</div>
+                    </div>
+                    <div class="post-message">${post.message}</div>
+                </div>
+            `).join('');
+        }
+        
+        displayPosts();
+    </script>
+</body>
+</html>

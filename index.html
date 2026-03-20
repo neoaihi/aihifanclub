@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>My Homepage</title>
+</head>
+
+<body bgcolor="black" text="white">
+
+<center>
+<h1>★★Welcome to death falling...★★</h1>
+
+<p>アイヒファンクラブへよくぞお越しくださいました。</p>
+
+<img src="images/GD_Thorn Dragon.png">
+
+<p>あなたは <b id="visitor-count">1</b> 人目 の来訪者です！</p>
+<p>現在工事中です、もうしばらくお時間を...</p>
+
+<hr>
+
+<a href="profile.html">プロフィール</a> |
+<a href="diary.html">日記</a> |
+<a href="bbs.html">掲示板</a>
+
+<hr>
+
+<p>最終更新日：2026/03/20</p>
+</center>
+
+<script>
+    // セッション中に一度だけカウント
+    if (!sessionStorage.getItem('visited')) {
+        let count = localStorage.getItem('visitorCount');
+        if (count === null) {
+            count = 1;
+        } else {
+            count = parseInt(count) + 1;
+        }
+        localStorage.setItem('visitorCount', count);
+        sessionStorage.setItem('visited', 'true');
+    }
+    
+    // 訪問者数を表示
+    let displayCount = localStorage.getItem('visitorCount') || '1';
+    document.getElementById('visitor-count').textContent = displayCount;
+</script>
+
+</body>
+</html>
