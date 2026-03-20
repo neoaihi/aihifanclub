@@ -138,7 +138,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
   const dbRef = ref(db, 'chat');
 
   // --- 投稿処理 ---
-  window.addPost = async function() {
+window.addPost = async function() {
     const nameEl = document.getElementById('name');
     const msgEl = document.getElementById('message');
     const submitBtn = document.querySelector('button');
@@ -148,7 +148,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       return;
     }
 
-    // ブラウザ固有IDの取得（LocalStorage方式）
+    // --- ID登録の記述（そのまま残しています） ---
     let browserId = localStorage.getItem('bbs_browser_id');
     if (!browserId) {
       browserId = "id_" + Math.random().toString(36).slice(2);
@@ -158,37 +158,40 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     submitBtn.disabled = true; // UI制限開始
 
     const timeData = serverTimestamp();
-    const newPostKey = push(dbRef).key; // 投稿用の新しいIDを発行
+    const newPostKey = push(dbRef).key;
 
-    // 【重要】メッセージとタイマーを同時に更新（Atomic Update）
+    // --- 【変更点】一括更新の内容に lastUpdate を追加 ---
     const updates = {};
     updates[`/chat/${newPostKey}`] = {
       name: nameEl.value || '名無し',
       message: msgEl.value,
       time: new Date().toLocaleString('ja-JP'),
       timestamp: timeData,
-      browserId: browserId // ルール照合用
+      browserId: browserId 
     };
+    
+    // 自分専用タイマーも更新しつつ、世界共通タイマー(6時間ロック用)も更新
     updates[`/user_timers/${browserId}`] = timeData;
+    updates[`/chat/lastUpdate`] = timeData; // ← これが緊急ロックのトリガー
 
     try {
       await update(ref(db), updates); 
       msgEl.value = '';
-      // 名前は残しておきたい場合は消さなくてOK（今回はリセットします）
-      // nameEl.value = ''; 
+      alert('投稿成功。これより6時間のロックダウンを開始します。');
     } catch (error) {
       console.error("Firebase Block:", error);
-      alert('【連投制限】5秒ほど待ってから投稿してください。');
+      // --- 【変更点】エラーメッセージを緊急用に ---
+      alert('【緊急警告】不正アクセス対策のため、システムは現在6時間のロックダウンモードです。');
     } finally {
-      // 5秒間のカウントダウン演出
+      // カウントダウン演出（そのまま残していますが、6時間なのでボタンは実質戻りません）
       let count = 5;
       const timer = setInterval(() => {
         count--;
-        submitBtn.textContent = `待機中 (${count}s)`;
+        submitBtn.textContent = `ロック中 (${count}s)`;
         if (count <= 0) {
           clearInterval(timer);
-          submitBtn.disabled = false;
-          submitBtn.textContent = "[ 投稿 ]";
+          // ロック中であることを明示するため、あえて無効化したままにするのが安全です
+          submitBtn.textContent = "[ 通信遮断モード ]";
         }
       }, 1000);
     }
