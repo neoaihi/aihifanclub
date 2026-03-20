@@ -117,47 +117,75 @@
         <a href="index.html">[ トップに戻る ]</a>
     </div>
 
-    <script>
-        function addPost() {
-            const name = document.getElementById('name').value || '名無し';
-            const message = document.getElementById('message').value;
-            
-            if (!message.trim()) {
-                alert('メッセージを入力してください');
-                return;
-            }
-            
-            const post = {
-                name: name,
-                message: message,
-                time: new Date().toLocaleString('ja-JP')
-            };
-            
-            let posts = JSON.parse(localStorage.getItem('posts')) || [];
-            posts.push(post);
-            localStorage.setItem('posts', JSON.stringify(posts));
-            
-            displayPosts();
-            document.getElementById('name').value = '';
-            document.getElementById('message').value = '';
-        }
-        
-        function displayPosts() {
-            const posts = JSON.parse(localStorage.getItem('posts')) || [];
-            const postsDiv = document.getElementById('posts');
-            postsDiv.innerHTML = posts.map((post, index) => `
-                <div class="post">
-                    <div class="post-header">
-                        <span class="post-number">${index + 1}</span>
-                        <span class="post-name">${post.name}</span>
-                        <div class="post-time">${post.time}</div>
-                    </div>
-                    <div class="post-message">${post.message}</div>
-                </div>
-            `).join('');
-        }
-        
-        displayPosts();
-    </script>
+    <script type="module">
+  // Firebaseから必要な機能をインポート
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, serverTimestamp } 
+    from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  // 【重要】ステップ1でメモした自分の設定に書き換えてください
+  const firebaseConfig = {
+    apiKey: "AIzaSyC3bNkmqjyKxSulJPpmM3WFGAsa4eFKHCE",
+    authDomain: "board-323ec.firebaseapp.com",
+    projectId: "board-323ec",
+    storageBucket: "board-323ec.firebasestorage.app",
+    messagingSenderId: "797665083554",
+    appId: "1:797665083554:web:016e253418e6be5534d7fb",
+    measurementId: "G-PQK27T7R6Q"
+  };
+
+
+  // Firebaseの初期化
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'chat'); // 'chat'という場所に保存する
+
+  // 投稿ボタンの処理
+  window.addPost = function() {
+    const name = document.getElementById('name').value || '名無し';
+    const message = document.getElementById('message').value;
+    
+    if (!message.trim()) {
+      alert('メッセージを入力してください');
+      return;
+    }
+
+    // データベースへ保存 (localStorageの代わり)
+    push(dbRef, {
+      name: name,
+      message: message,
+      time: new Date().toLocaleString('ja-JP'),
+      timestamp: serverTimestamp() // 並び替え用の時間データ
+    });
+
+    document.getElementById('name').value = '';
+    document.getElementById('message').value = '';
+  };
+
+  // データベースの更新を監視して表示する
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+    const postsDiv = document.getElementById('posts');
+    postsDiv.innerHTML = ""; // 一旦クリア
+
+    if (data) {
+      // オブジェクトを配列に変換して表示
+      Object.values(data).forEach((post, index) => {
+        const postHtml = `
+          <div class="post">
+            <div class="post-header">
+              <span class="post-number">${index + 1}</span>
+              <span class="post-name">${post.name}</span>
+              <div class="post-time">${post.time}</div>
+            </div>
+            <div class="post-message">${post.message}</div>
+          </div>
+        `;
+        // display-flex: column-reverseなので、新しいものが上にくるように挿入
+        postsDiv.insertAdjacentHTML('beforeend', postHtml);
+      });
+    }
+  });
+</script>
 </body>
 </html>
