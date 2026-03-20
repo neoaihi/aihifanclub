@@ -28,22 +28,41 @@
 <p>最終更新日：2026/03/20</p>
 </center>
 
-<script>
-    // セッション中に一度だけカウント
-    if (!sessionStorage.getItem('visited')) {
-        let count = localStorage.getItem('visitorCount');
-        if (count === null) {
-            count = 1;
-        } else {
-            count = parseInt(count) + 1;
-        }
-        localStorage.setItem('visitorCount', count);
-        sessionStorage.setItem('visited', 'true');
-    }
-    
-    // 訪問者数を表示
-    let displayCount = localStorage.getItem('visitorCount') || '1';
-    document.getElementById('visitor-count').textContent = displayCount;
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, runTransaction, onValue } 
+    from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  // 【重要】掲示板と同じ設定をここに貼り付けてください
+    const firebaseConfig = {
+    apiKey: "AIzaSyC3bNkmqjyKxSulJPpmM3WFGAsa4eFKHCE",
+    authDomain: "board-323ec.firebaseapp.com",
+    databaseURL: "https://board-323ec-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "board-323ec",
+    storageBucket: "board-323ec.firebasestorage.app",
+    messagingSenderId: "797665083554",
+    appId: "1:797665083554:web:016e253418e6be5534d7fb",
+    measurementId: "G-PQK27T7R6Q"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const counterRef = ref(db, 'visitorCount');
+
+  // セッション中に一度だけカウントアップ
+  if (!sessionStorage.getItem('visited')) {
+    // transactionを使うと、同時にアクセスしても正確に+1できます
+    runTransaction(counterRef, (currentCount) => {
+      return (currentCount || 0) + 1;
+    });
+    sessionStorage.setItem('visited', 'true');
+  }
+
+  // カウントをリアルタイムに表示
+  onValue(counterRef, (snapshot) => {
+    const count = snapshot.val() || 0;
+    document.getElementById('visitor-count').textContent = count;
+  });
 </script>
 
 </body>
