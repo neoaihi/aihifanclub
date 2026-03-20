@@ -118,12 +118,10 @@
     </div>
 
     <script type="module">
-  // Firebaseから必要な機能をインポート
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, serverTimestamp } 
+ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, serverTimestamp, update } 
     from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  // Firebase code
   const firebaseConfig = {
     apiKey: "AIzaSyC3bNkmqjyKxSulJPpmM3WFGAsa4eFKHCE",
     authDomain: "board-323ec.firebaseapp.com",
@@ -135,43 +133,80 @@
     measurementId: "G-PQK27T7R6Q"
   };
 
-
-  // Firebaseの初期化
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-  const dbRef = ref(db, 'chat'); // 'chat'という場所に保存する
+  const dbRef = ref(db, 'chat');
 
   // 投稿ボタンの処理
-  window.addPost = function() {
-    const name = document.getElementById('name').value || '名無し';
-    const message = document.getElementById('message').value;
+  window.addPost = async function() {
+    const nameInput = document.getElementById('name');
+    const messageInput = document.getElementById('message');
+    const submitBtn = document.querySelector('button'); // 投稿ボタンを取得
+    
+    const name = nameInput.value || '名無し';
+    const message = messageInput.value;
     
     if (!message.trim()) {
       alert('メッセージを入力してください');
       return;
     }
 
-    // データベースへ保存 (localStorageの代わり)
-    push(dbRef, {
+    // --- UI連投防止：ボタンを5秒間無効化 ---
+    submitBtn.disabled = true;
+    let timeLeft = 5;
+    const originalText = "[ 投稿 ]";
+    
+    const timer = setInterval(() => {
+      timeLeft -= 1;
+      submitBtn.textContent = `待機中 (${timeLeft}s)`;
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    }, 1000);
+
+    // --- Firebaseへの同時書き込み処理 ---
+    const timeData = serverTimestamp();
+    const newPostKey = push(ref(db, 'chat')).key; // 新しいIDを生成
+
+    const updates = {};
+    // 1. 新しいメッセージのデータ
+    updates['/chat/' + newPostKey] = {
       name: name,
       message: message,
       time: new Date().toLocaleString('ja-JP'),
-      timestamp: serverTimestamp() // 並び替え用の時間データ
-    });
+      timestamp: timeData
+    };
+    // 2. 掲示板全体の最終更新時間を更新（ルール突破用）
+    updates['/chat/lastUpdate'] = timeData;
 
-    document.getElementById('name').value = '';
-    document.getElementById('message').value = '';
+    try {
+      await update(ref(db), updates); // まとめて送信
+      messageInput.value = ''; // 成功したらメッセージを消す
+    } catch (error) {
+      console.error(error);
+      if (error.message.includes("Permission denied")) {
+        alert("【システム】連投制限中です。あと数秒待ってから送信してください。");
+      } else {
+        alert("投稿に失敗しました。設定を確認してください。");
+      }
+    }
   };
 
-  // データベースの更新を監視して表示する
+  // 表示処理
   onValue(dbRef, (snapshot) => {
     const data = snapshot.val();
     const postsDiv = document.getElementById('posts');
-    postsDiv.innerHTML = ""; // 一旦クリア
+    postsDiv.innerHTML = ""; 
 
     if (data) {
-      // オブジェクトを配列に変換して表示
-      Object.values(data).forEach((post, index) => {
+      // lastUpdateを除外してメッセージだけを配列にする
+      const entries = Object.entries(data)
+        .filter(([key]) => key !== 'lastUpdate')
+        .map(([key, value]) => value);
+
+      entries.forEach((post, index) => {
         const postHtml = `
           <div class="post">
             <div class="post-header">
@@ -182,25 +217,10 @@
             <div class="post-message">${post.message}</div>
           </div>
         `;
-        // display-flex: column-reverseなので、新しいものが上にくるように挿入
         postsDiv.insertAdjacentHTML('beforeend', postHtml);
       });
     }
   });
-// 投稿時の処理
-const postMessage = (text) => {
-  const db = getDatabase();
-  const chatRef = ref(db, 'chat');
-
-  push(chatRef, {
-    message: text,
-    timestamp: serverTimestamp() // ← これを必ず含める！
-  }).catch((error) => {
-    if (error.message.includes("Permission denied")) {
-      alert("連投は禁止されています。少し時間を置いてから投稿してください。");
-    }
-  });
-};
 </script>
 </body>
 </html>
