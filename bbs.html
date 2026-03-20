@@ -117,11 +117,14 @@
         <a href="index.html">[ トップに戻る ]</a>
     </div>
 
-    <script type="module">
- import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, serverTimestamp, update, set } 
+<script type="module">
+  // 1. Firebaseから必要な機能をインポートします
+  // なぜ必要か：データベースを操作するための「道具（関数）」を使えるようにするため
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, serverTimestamp, update } 
     from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+  // 2. あなたのFirebaseプロジェクトへの接続情報です
   const firebaseConfig = {
     apiKey: "AIzaSyC3bNkmqjyKxSulJPpmM3WFGAsa4eFKHCE",
     authDomain: "board-323ec.firebaseapp.com",
@@ -133,12 +136,14 @@
     measurementId: "G-PQK27T7R6Q"
   };
 
+  // 3. Firebaseを起動（初期化）し、データベースへの窓口を作ります
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const dbRef = ref(db, 'chat');
 
-  // 投稿ボタンの処理
-window.addPost = async function() {
+  // 4. 投稿ボタンの処理（HTMLの onclick="addPost()" から呼ばれます）
+  window.addPost = async function() {
+    // 画面の入力欄やボタンを取得します
     const nameInput = document.getElementById('name');
     const messageInput = document.getElementById('message');
     const submitBtn = document.querySelector('button');
@@ -146,9 +151,11 @@ window.addPost = async function() {
     const name = nameInput.value || '名無し';
     const message = messageInput.value;
     
+    // 入力が空なら何もしません
     if (!message.trim()) return;
 
-    // UIの無効化（5秒）
+    // 5. 【UI保護】ボタンを無効化し、カウントダウンを開始します
+    // なぜ必要か：ユーザーが連打して何度もリクエストを送るのを防ぐため
     submitBtn.disabled = true;
     let timeLeft = 5;
     const timer = setInterval(() => {
@@ -161,35 +168,43 @@ window.addPost = async function() {
         }
     }, 1000);
 
+    // 6. サーバー上の現在時刻を取得する「予約」をします
+    const timeData = serverTimestamp();
+
+    // 7. メッセージを保存する場所（ユニークなID）をあらかじめ確保します
+    const newPostKey = push(ref(db, 'chat')).key;
+
+    // 8. 「お願いリスト（オブジェクト）」を作成し、指示を詰め込みます
+    // なぜ必要か：これらを「一括(update)」で送ることで、ルールの隙をなくすため
+    const updates = {};
+    updates[`/chat/${newPostKey}`] = {
+      name: name,
+      message: message,
+      time: new Date().toLocaleString('ja-JP'),
+      timestamp: timeData
+    };
+    updates['/chat/lastUpdate'] = timeData; // 全体ロック用の時間を更新
+
     try {
-      const timeData = serverTimestamp();
-
-      // 1. メッセージを投稿
-      await push(ref(db, 'chat'), {
-        name: name,
-        message: message,
-        time: new Date().toLocaleString('ja-JP'),
-        timestamp: timeData
-      });
-
-      // 2. 最後に投稿した時間を記録（これが次の投稿を5秒ブロックする）
-      await set(ref(db, 'chat/lastUpdate'), timeData);
-
-      messageInput.value = '';
+      // 9. 用意したリストを一斉送信します
+      await update(ref(db), updates); 
+      messageInput.value = ''; // 成功したら入力欄をリセット
     } catch (error) {
-      console.error(error);
-      alert("連投制限中、または通信エラーです。");
+      // 10. 5秒経っていない等の理由でサーバーに拒否された場合
+      console.error("ブロックされました:", error);
+      alert("【連投制限】5秒待ってください！");
     }
-  };
+  }; // ← ここに閉じカッコが必要でした
 
-  // 表示処理
+  // 11. データベースの更新をリアルタイムで監視して画面に表示します
+  // なぜ必要か：自分や他人の投稿がすぐに画面に反映されるようにするため
   onValue(dbRef, (snapshot) => {
     const data = snapshot.val();
     const postsDiv = document.getElementById('posts');
     postsDiv.innerHTML = ""; 
 
     if (data) {
-      // lastUpdateを除外してメッセージだけを配列にする
+      // 12. メタデータ（lastUpdate）以外の投稿内容だけを抽出して表示用に加工します
       const entries = Object.entries(data)
         .filter(([key]) => key !== 'lastUpdate')
         .map(([key, value]) => value);
