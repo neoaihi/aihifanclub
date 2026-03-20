@@ -187,6 +187,20 @@
       });
     }
   });
+// 投稿時の処理
+const postMessage = (text) => {
+  const db = getDatabase();
+  const chatRef = ref(db, 'chat');
+
+  push(chatRef, {
+    message: text,
+    timestamp: serverTimestamp() // ← これを必ず含める！
+  }).catch((error) => {
+    if (error.message.includes("Permission denied")) {
+      alert("連投は禁止されています。少し時間を置いてから投稿してください。");
+    }
+  });
+};
 </script>
 </body>
 </html>
