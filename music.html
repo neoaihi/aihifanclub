@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Music Playlist</title>
+    <style>
+        body { background-color: black; color: #00ff00; font-family: monospace; text-align: center; }
+        .player-container { border: 2px solid #00ff00; display: inline-block; padding: 20px; margin-top: 30px; width: 300px; }
+        
+        /* プレイリストのスタイル */
+        .playlist { text-align: left; margin: 20px 0; border: 1px inset #00ff00; padding: 10px; height: 150px; overflow-y: auto; }
+        .track-item { cursor: pointer; padding: 5px; border-bottom: 1px dotted #333; }
+        .track-item:hover { background: #004400; }
+        .active-track { color: #ff00ff; font-weight: bold; } /* 再生中の曲をピンクに */
+
+        button { background: black; color: #00ff00; border: 1px solid #00ff00; padding: 10px; cursor: pointer; margin: 5px; }
+        button:hover { background: #00ff00; color: black; }
+        #volume-control { accent-color: #00ff00; width: 80%; }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h1>[ DRIVE BGM ]</h1>
+        
+        <div id="display-area">
+            <p>NOW PLAYING:</p>
+            <p id="current-title" style="color: #ff00ff;">---</p>
+        </div>
+
+        <hr>
+
+        <div class="playlist" id="playlist-container">
+            </div>
+
+        <div class="controls">
+            <button onclick="playMusic()">PLAY</button>
+            <button onclick="stopMusic()">STOP</button>
+        </div>
+
+        <p>VOLUME</p>
+        <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5" oninput="setVolume(this.value)">
+    </div>
+
+    <p><a href="index.html" style="color: white;">TOPへ戻る</a></p>
+
+    <audio id="bgm" loop></audio>
+
+    <script>
+        // BGMリストを追加
+        const songs = [
+            { title: "来訪者PSG", file: "musics/来訪者PSG_aihi.wav" },
+            { title: "決戦PSG", file: "musics/決戦PSG_aihi.wav" },
+            { title: "静かな町", file: "musics/静かな町_aihi.wav" },
+            { title: "旅の始まり", file: "musics/旅の始まり_aihi.wav" },
+            { title: "縫界荒野", file: "musics/縫界荒野_aihi.wav" }
+        ];
+
+        const audio = document.getElementById('bgm');
+        const currentTitle = document.getElementById('current-title');
+        const playlistContainer = document.getElementById('playlist-container');
+
+        // プレイリストの表示を生成
+        songs.forEach((song, index) => {
+            const div = document.createElement('div');
+            div.className = 'track-item';
+            div.textContent = `${index + 1}. ${song.title}`;
+            div.onclick = () => loadSong(index);
+            playlistContainer.appendChild(div);
+        });
+
+        // 曲を読み込む関数
+        function loadSong(index) {
+            const song = songs[index];
+            audio.src = song.file;
+            currentTitle.textContent = song.title;
+            
+            // 再生中表示の更新
+            const items = document.querySelectorAll('.track-item');
+            items.forEach(item => item.classList.remove('active-track'));
+            items[index].classList.add('active-track');
+
+            audio.play();
+        }
+
+        function playMusic() {
+            if (audio.src) {
+                audio.play();
+            } else {
+                // まだ曲が選ばれていないなら1曲目を再生
+                loadSong(0);
+            }
+        }
+
+        function stopMusic() {
+            audio.pause();
+        }
+
+        function setVolume(val) {
+            audio.volume = val;
+        }
+    </script>
+    <a href="index.html">トップに戻る</a>
+</body>
+</html>
