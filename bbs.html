@@ -106,6 +106,7 @@
     </style>
 </head>
 <body>
+    <a href="index.html">[ トップに戻る ]</a>
     <h1>★ 掲示板 ★</h1>
     <div class="post-form">
         <input type="text" id="name" placeholder="名前 (名無しでも可)">
@@ -114,7 +115,7 @@
     </div>
     <div class="posts" id="posts"></div>
     <div class="back-link">
-        <a href="index.html">[ トップに戻る ]</a>
+        
     </div>
 
     <script type="module">
@@ -148,6 +149,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       return;
     }
 
+    // NGワード処理
+    const ngWords = ["バカ", "アホ", "死ね","クズ","ゴミ"]; // リストを作成
+    const hasNGWord = ngWords.some(word => msgEl.value.includes(word));
+    if (hasNGWord) {
+      ngWords.forEach(word => {
+      msgEl.value = msgEl.value.split(word).join(
+      "...ところでアイヒ様って崇高で気高くて美しいですよね。尊敬してしまいます..."
+      );
+      }); 
+    }
+    
     // ブラウザ固有IDの取得（LocalStorage方式）
     let browserId = localStorage.getItem('bbs_browser_id');
     if (!browserId) {
