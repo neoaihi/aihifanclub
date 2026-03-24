@@ -149,27 +149,38 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       return;
     }
 
-    // NGワード処理
-    const ngWords = ["バカ", "アホ", "死ね","クズ","ゴミ"]; // リストを作成
-    const hasNGWord = ngWords.some(word => msgEl.value.includes(word));
-    if (hasNGWord) {
-      ngWords.forEach(word => {
-      msgEl.value = msgEl.value.split(word).join(
+// NGワード処理
+const ngWords = ["バカ", "アホ", "死ね","クズ","ゴミ"]; // リストを作成
+const hasNGWord = ngWords.some(word => msgEl.value.includes(word));
+if (hasNGWord) {
+  ngWords.forEach(word => {
+    msgEl.value = msgEl.value.split(word).join(
       "...ところでアイヒ様って崇高で気高くて美しいですよね。尊敬してしまいます..."
-      );
-      }); 
-    }
+    );
+  }); 
+}
+const ngNameWords = ["管理人", "アイヒ"]; // リストを作成
+let hasSpecialWord = false;
+if (ngNameWords.some(word => nameEl.value.includes(word)) && nameEl.value.includes("9528")) {
+  hasSpecialWord = true;
+}
 
-    const ngNameWords = ["管理人", "アイヒ"]; // リストを作成
-    const hasNGNameWord = ngNameWords.some(word => nameEl.value.includes(word));
-    if (hasNGNameWord) {
-      ngNameWords.forEach(word => {
+const hasNGNameWord = ngNameWords.some(word => nameEl.value.includes(word));
+if (!hasSpecialWord) { // 「管理人」と「アイヒ」が含まれる場合にNGワード処理を実行する
+  if (hasNGNameWord) {
+    ngNameWords.forEach(word => {
       nameEl.value = nameEl.value.split(word).join(
-      "偽物です★"
+        "偽物です★"
       );
-      }); 
-    }
-    
+    }); 
+  }
+} else { // 「管理人」と「アイヒ」が含まれる場合は「9528」を削除する
+  const newNameValue = nameEl.value.replace(/9528.*| 9528 /g, '');
+  nameEl.value = newNameValue;
+}
+
+
+
     // ブラウザ固有IDの取得（LocalStorage方式）
     let browserId = localStorage.getItem('bbs_browser_id');
     if (!browserId) {
