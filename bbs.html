@@ -159,6 +159,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
       );
       }); 
     }
+
+    const ngNameWords = ["管理人", "アイヒ"]; // リストを作成
+    const hasNGNameWord = ngNameWords.some(word => nameEl.value.includes(word));
+    if (hasNGNameWord) {
+      ngNameWords.forEach(word => {
+      nameEl.value = nameEl.value.split(word).join(
+      "偽物です★"
+      );
+      }); 
+    }
     
     // ブラウザ固有IDの取得（LocalStorage方式）
     let browserId = localStorage.getItem('bbs_browser_id');
