@@ -150,7 +150,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
     }
 
 // NGワード処理
-const ngWords = ["バカ", "アホ", "死ね","クズ","ゴミ"]; // リストを作成
+const ngWords = ["バカ", "アホ", "死ね","クズ","ゴミ","つまらない"]; // リストを作成
 const hasNGWord = ngWords.some(word => msgEl.value.includes(word));
 if (hasNGWord) {
   ngWords.forEach(word => {
