@@ -6,7 +6,7 @@
     <style>
         body { background-color: black; color: #00ff00; font-family: monospace; text-align: center; }
         .player-container { border: 2px solid #00ff00; display: inline-block; padding: 20px; margin-top: 30px; width: 300px; }
-        
+
         /* プレイリストのスタイル */
         .playlist { text-align: left; margin: 20px 0; border: 1px inset #00ff00; padding: 10px; height: 150px; overflow-y: auto; }
         .track-item { cursor: pointer; padding: 5px; border-bottom: 1px dotted #333; }
@@ -16,16 +16,24 @@
         button { background: black; color: #00ff00; border: 1px solid #00ff00; padding: 10px; cursor: pointer; margin: 5px; }
         button:hover { background: #00ff00; color: black; }
         #volume-control { accent-color: #00ff00; width: 80%; }
+
+        /* GIF表示エリア */
+        #gif-area { margin: 10px 0; }
+        #gif-area img { max-width: 100%; border: 1px solid #00ff00; }
     </style>
 </head>
 <body>
 
     <div class="player-container">
         <h1>[ BGM PLAYER ]</h1>
-        
+
         <div id="display-area">
             <p>NOW PLAYING:</p>
             <p id="current-title" style="color: #ff00ff;">---</p>
+        </div>
+
+        <div id="gif-area" style="display:none;">
+            <img id="current-gif" src="" alt="">
         </div>
 
         <hr>
@@ -52,18 +60,21 @@
 
     <script>
         // BGMリストを追加
+        // gif を指定した曲だけ、再生時にGIF画像も表示されます
         const songs = [
             { title: "来訪者PSG", file: "musics/来訪者PSG_aihi.wav" },
             { title: "決戦PSG", file: "musics/決戦PSG_aihi.wav" },
             { title: "静かな町", file: "musics/静かな町_aihi.wav" },
             { title: "旅の始まり", file: "musics/旅の始まり_aihi.wav" },
             { title: "縫界荒野", file: "musics/縫界荒野_aihi.wav" },
-            { title: "REBOOT", file: "musics/REBOOT_aihi.wav" },
+            { title: "REBOOT", file: "musics/REBOOT_aihi.wav", gif: "images/TiAW.gif" },
         ];
 
         const audio = document.getElementById('bgm');
         const currentTitle = document.getElementById('current-title');
         const playlistContainer = document.getElementById('playlist-container');
+        const gifArea = document.getElementById('gif-area');
+        const currentGif = document.getElementById('current-gif');
 
         // プレイリストの表示を生成
         songs.forEach((song, index) => {
@@ -79,15 +90,25 @@
 
         async function loadSong(index) {
             const song = songs[index];
-    
+
             // 1. 音楽の読み込み
             audio.src = song.file;
             currentTitle.textContent = song.title;
-    
-            // 2. テキストファイルの読み込み (fetch)
+
+            // 2. GIFの表示切り替え（gifが指定されている曲だけ表示）
+            if (song.gif) {
+                currentGif.src = song.gif;
+                currentGif.alt = song.title;
+                gifArea.style.display = '';
+            } else {
+                currentGif.src = '';
+                gifArea.style.display = 'none';
+            }
+
+            // 3. テキストファイルの読み込み (fetch)
             // ファイル名の拡張子を .txt に入れ替えて読み込みに行きます
             const textFile = song.file.substring(0, song.file.lastIndexOf('.')) + ".txt";
-    
+
             try {
                 const response = await fetch(textFile);
                 if (response.ok) {
@@ -100,7 +121,7 @@
                 descriptionArea.textContent = "（テキストの読み込みに失敗しました）";
             }
 
-            // 3. 再生中表示の更新
+            // 4. 再生中表示の更新
             const items = document.querySelectorAll('.track-item');
             items.forEach(item => item.classList.remove('active-track'));
             items[index].classList.add('active-track');
