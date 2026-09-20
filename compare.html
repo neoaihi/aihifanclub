@@ -1,0 +1,1799 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>キャラ相性診断</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Shippori+Mincho+B1:wght@400;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style id="skinRetro">
+  /* Look & feel follows aihifanclub.jp: black ground, terminal green, magenta highlight,
+     monospace type, square 2px green frames, [ BRACKET ] headings, uppercase labels. */
+  :root {
+    --bg: #000000;
+    --surface: #000000;
+    --surface-2: #111111;
+    --ink: #ffffff;
+    --muted: #a3a3a3;
+    --line: #004400;
+    --accent: #00ff00;
+    --accent-soft: #00ff0026;
+    --accent-ink: #000000;
+    --accent-2: #ff00ff;
+    --accent-2-soft: #ff00ff26;
+    --accent-2-ink: #000000;
+    --grid: #333333;
+    --title: #00ff00;
+    --good: #00ff00;
+    --warn: #ff6a3d;
+    --hover: #004400;
+    --shadow: none;
+    --font: "Courier New", Courier, "Noto Sans JP", monospace;
+    --f-serif: "Courier New", "Noto Sans JP", monospace;
+    --f-mono: "Courier New", "Noto Sans JP", monospace;
+    --f-sans: "Courier New", "Noto Sans JP", monospace;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    padding-inline: 16px;
+    padding-block: 0 48px;
+    display: flex;
+    justify-content: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+  button, input, textarea { font-family: inherit; }
+  hr { border: 0; border-top: 2px solid #8a8a8a; margin: 0; width: 100%; }
+
+  .app { width: 100%; max-width: 1040px; display: flex; flex-direction: column; gap: 22px; }
+
+  /* sticky live readout */
+  .live {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+    border-top: 0;
+    padding: 8px 14px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--ink);
+    width: 100%;
+    font-size: 14px;
+  }
+  .live:hover { background: var(--hover); }
+  .live:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .live .pair { font-weight: 700; font-size: 15px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live .pair .a { color: var(--accent); }
+  .live .pair .b { color: var(--accent-2); }
+  .live .pair .x { color: var(--muted); font-weight: 400; margin-inline: 6px; }
+  .live .kind { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .live .pts { font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+  .live .pts small { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+  @media (max-width: 560px) { .live .kind { display: none; } }
+
+  header { display: flex; flex-direction: column; gap: 10px; padding-top: 22px; align-items: center; text-align: center; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; color: var(--ink); }
+  h1::before { content: "[ "; }
+  h1::after { content: " ]"; }
+  h1 { font-weight: 700; font-size: clamp(24px, 4.4vw, 34px); margin: 0; color: var(--title); text-wrap: balance; }
+  .lede { color: var(--muted); font-size: 13px; margin: 0; max-width: 64ch; line-height: 1.8; }
+
+  .toolbar { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+  .tbtn {
+    font-size: 13px; padding: 9px 14px; margin: 1px;
+    background: var(--bg); color: var(--accent); border: 1px solid var(--accent); border-radius: 0; cursor: pointer;
+  }
+  .tbtn:hover { background: var(--accent); color: var(--bg); }
+  .tbtn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .tbtn:disabled, .save-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .tbtn:disabled:hover { background: var(--bg); color: var(--accent); }
+  .tbtn-main { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .tbtn-main:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--accent-2-ink); }
+
+  /* character inputs */
+  .inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .inputs { grid-template-columns: 1fr; } }
+
+  .char {
+    --c: var(--accent); --c-soft: var(--accent-soft); --c-ink: var(--accent-ink);
+    background: var(--surface); border: 2px solid var(--c); border-radius: 0;
+    padding: 18px; display: flex; flex-direction: column; gap: 18px; min-width: 0;
+  }
+  .char[data-key="B"] { --c: var(--accent-2); --c-soft: var(--accent-2-soft); --c-ink: var(--accent-2-ink); }
+
+  .char-head { display: flex; align-items: center; gap: 10px; }
+  .badge {
+    flex: none; width: 34px; height: 34px; display: grid; place-items: center;
+    border: 2px solid var(--c); color: var(--c); background: var(--bg); font-weight: 700; font-size: 16px;
+  }
+  .name-input {
+    flex: 1; min-width: 0; border: none; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--c);
+    font-size: 19px; font-weight: 700; padding: 4px 0; outline: none;
+  }
+  .name-input:focus-visible { border-bottom-color: var(--c); }
+  .name-input::placeholder { color: var(--muted); opacity: .7; font-weight: 400; }
+
+  fieldset { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  legend { padding: 0; margin-bottom: 8px; font-size: 12px; letter-spacing: .1em; color: var(--ink); }
+  legend b { font-size: 14px; color: var(--c); margin-right: 8px; letter-spacing: .04em; }
+  legend b::before { content: "[ "; }
+  legend b::after { content: " ]"; }
+  .legend-row { display: flex; align-items: baseline; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 212px; overflow-y: auto; padding: 8px; border: 1px solid var(--c); }
+  .chip {
+    font-size: 13px; padding: 4px 10px; border-radius: 0; cursor: pointer;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--grid);
+  }
+  .chip:hover { background: var(--hover); border-color: var(--c); }
+  .chip[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--c-ink); font-weight: 700; }
+  .chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  .text-in {
+    width: 100%; font-size: 14px; color: var(--ink); background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 0; padding: 9px 11px; outline: none; caret-color: var(--c);
+  }
+  textarea.text-in { resize: vertical; line-height: 1.6; }
+  .text-in::placeholder { color: var(--muted); opacity: .7; }
+  .text-in:focus-visible { border-color: var(--c); }
+
+  .detected { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+  .detected:empty { display: none; }
+  .det-chip { font-size: 12px; padding: 2px 8px; border: 1px dashed var(--c); color: var(--ink); }
+
+  .stat-row { display: grid; grid-template-columns: 44px 1fr 46px; align-items: center; gap: 10px; padding-block: 6px; border-bottom: 1px dotted var(--grid); }
+  .stat-row:last-of-type { border-bottom: none; }
+  .stat-row .kanji { font-weight: 700; font-size: 15px; color: var(--title); }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 0; outline: none;
+    background: linear-gradient(to right, var(--c) 0%, var(--c) var(--fill, 50%), var(--grid) var(--fill, 50%), var(--grid) 100%);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--c); border: 0; cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--c); border: 0; cursor: pointer; }
+  input[type="range"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .stat-num {
+    font-weight: 700; font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; color: var(--c);
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 0; padding: 4px 6px; width: 100%; min-width: 0; -moz-appearance: textfield;
+  }
+  .stat-num::-webkit-outer-spin-button, .stat-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stat-num:focus-visible { outline: 1px solid var(--c); outline-offset: 0; }
+  .hint { font-size: 11px; color: var(--muted); margin: 0; }
+
+  /* history & library (styled like the BGM playlist) */
+  .history { background: var(--bg); border: 1px solid var(--accent); padding: 10px 14px; }
+  .history summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--accent); padding-block: 4px; }
+  .history summary:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .history ul { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; }
+  .history li { display: grid; grid-template-columns: 82px 1fr 34px auto; gap: 10px; align-items: center; font-size: 14px; padding: 5px; border-bottom: 1px dotted var(--grid); }
+  .history li:hover { background: var(--hover); }
+  .history li.empty { display: block; color: var(--muted); }
+  .history li.empty:hover { background: transparent; }
+  .h-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .h-names { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-names .a { color: var(--accent); }
+  .h-names .b { color: var(--accent-2); }
+  .h-names .x { color: var(--muted); font-weight: 400; margin-inline: 6px; }
+  .h-score { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+  .history .tbtn { padding: 5px 12px; }
+  .history + .history { margin-top: 0; }
+  .lib-where { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .history ul.lib li { grid-template-columns: minmax(0, 1fr) repeat(4, auto); }
+  .lib-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .lib-name { display: flex; flex-direction: column; min-width: 0; line-height: 1.4; }
+  .lib-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .lib-meta { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tbtn.del { color: var(--warn); border-color: var(--warn); }
+  .tbtn.del:hover { background: var(--warn); color: var(--bg); }
+  .save-char { flex: none; padding: 6px 10px; font-size: 12px; margin: 0; }
+  @media (max-width: 560px) {
+    .history ul.lib li { grid-template-columns: repeat(4, 1fr); }
+    .history ul.lib li .lib-name { grid-column: 1 / -1; }
+  }
+
+  /* result */
+  .result { display: flex; flex-direction: column; gap: 18px; scroll-margin-top: 70px; }
+  .result-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .result-top { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 2px solid var(--accent); padding: 20px; min-width: 0; }
+  .card-title { font-size: 12px; letter-spacing: .1em; color: var(--ink); margin: 0 0 14px; }
+  .card-title::before { content: "[ "; color: var(--accent); }
+  .card-title::after { content: " ]"; color: var(--accent); }
+
+  .verdict { display: flex; gap: 18px; align-items: center; margin-bottom: 20px; }
+  .ring { position: relative; flex: none; width: 128px; height: 128px; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring .track { fill: none; stroke: var(--grid); stroke-width: 9; }
+  .ring .fill { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: butt; transition: stroke-dashoffset .5s steps(12); }
+  .ring .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .ring .score { font-weight: 700; font-size: 34px; font-variant-numeric: tabular-nums; line-height: 1; color: var(--accent-2); }
+  .ring .rank { font-weight: 700; font-size: 13px; color: var(--title); margin-top: 6px; }
+  .kind-block { min-width: 0; }
+  .kind-block .kind-title { font-weight: 700; font-size: clamp(20px, 3.2vw, 26px); margin: 0 0 6px; color: var(--accent-2); text-wrap: balance; }
+  .kind-block p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+
+  .bars { display: flex; flex-direction: column; gap: 14px; }
+  .bar-row { display: grid; grid-template-columns: 78px 1fr 34px; gap: 4px 10px; align-items: center; }
+  .bar-row .lab { font-weight: 700; font-size: 14px; color: var(--title); }
+  .bar-row .num { font-weight: 700; font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-row .meter { height: 8px; background: var(--grid); overflow: hidden; }
+  .bar-row .meter i { display: block; height: 100%; background: var(--accent); transition: width .4s steps(10); }
+  .bar-row .why { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+
+  .chart-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  canvas { width: 100%; max-width: 440px; height: auto; aspect-ratio: 1 / 1; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 16px; height: 0; border-top: 3px solid; display: inline-block; }
+  .legend i.a { border-color: var(--accent); }
+  .legend i.b { border-color: var(--accent-2); }
+  .legend i.u { border-top: 2px dashed var(--muted); }
+
+  .points { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  @media (max-width: 860px) { .points { grid-template-columns: 1fr; } }
+  .points h3 { margin: 0 0 12px; font-size: 15px; color: var(--dot); }
+  .points h3::before { content: "[ "; }
+  .points h3::after { content: " ]"; }
+  .points .good { --dot: var(--good); }
+  .points .warn { --dot: var(--warn); border-color: var(--warn); }
+  .points ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .points li { display: grid; grid-template-columns: 46px 1fr; gap: 10px; font-size: 13px; line-height: 1.7; align-items: baseline; padding: 8px 0; border-bottom: 1px dotted var(--grid); }
+  .points li:last-child { border-bottom: none; }
+  .tag { font-size: 10px; letter-spacing: .04em; text-align: center; padding: 2px 0; border: 1px solid var(--line); color: var(--muted); background: var(--surface-2); }
+  .empty { color: var(--muted); font-size: 13px; }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 14px; }
+  th, td { padding: 9px 10px; border-bottom: 1px dotted var(--grid); text-align: center; }
+  th { font-weight: 400; font-size: 11px; letter-spacing: .08em; color: var(--muted); }
+  th:first-child, td:first-child { text-align: left; }
+  td.k { font-weight: 700; font-size: 15px; color: var(--title); }
+  td.va, td.vb { font-weight: 700; font-variant-numeric: tabular-nums; }
+  td.va { color: var(--accent); }
+  td.vb { color: var(--accent-2); }
+  td.hi { text-decoration: underline; text-underline-offset: 4px; }
+  tr:last-child td { border-bottom: none; }
+  .pill { font-size: 12px; padding: 2px 8px; border: 1px solid var(--grid); color: var(--muted); white-space: nowrap; }
+  .pill.comp { border-color: var(--good); color: var(--good); font-weight: 700; }
+  .pill.low { border-color: var(--warn); color: var(--warn); }
+
+  .save-row { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .save-btn {
+    font-size: 15px; font-weight: 700; color: var(--accent-ink); background: var(--accent);
+    border: 1px solid var(--accent); border-radius: 0; padding: 12px 28px; cursor: pointer;
+  }
+  .save-btn:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  .save-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .toast { font-size: 12px; color: var(--muted); min-height: 16px; margin: 0; text-align: center; }
+  .toast[data-kind="ok"] { color: var(--good); }
+  .toast[data-kind="err"] { color: var(--warn); }
+
+  .topnav { margin: -10px 0 -6px; padding: 0 4px 8px; border-bottom: 1px dotted var(--grid); font-size: 13px; }
+  .topnav a { color: var(--accent); text-decoration: none; padding: 2px 4px; }
+  .topnav a:visited { color: var(--accent); }
+  .topnav a:hover { background: var(--hover); text-decoration: underline; text-underline-offset: 3px; }
+  .topnav a:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.8; margin: 0; text-align: center; }
+</style>
+
+<div class="app">
+  <button type="button" class="live" id="live" aria-label="診断結果へ移動">
+    <span class="pair" id="livePair"></span>
+    <span class="kind" id="liveKind"></span>
+    <span class="pts"><span id="livePts">0</span><small>/100</small></span>
+  </button>
+
+  <nav class="topnav" aria-label="サイト内リンク"><a href="index.html">&lt; トップに戻る</a></nav>
+
+  <header>
+    <span class="eyebrow">CHARACTER COMPATIBILITY CHECKER</span>
+    <h1>キャラ相性診断</h1>
+    <p class="lede">2人のキャラクターの性格・境遇・好きなもの・ステータスヘキサゴンを入力すると、入力に合わせてその場で相性を診断します。文章欄に書いた内容からも特徴を自動で拾います。</p>
+    <div class="toolbar">
+      <button type="button" class="tbtn" id="btnSample">サンプルを読み込む</button>
+      <button type="button" class="tbtn" id="btnSwap">AとBを入れ替える</button>
+      <button type="button" class="tbtn" id="btnClear">すべて空にする</button>
+      <button type="button" class="tbtn tbtn-main" id="btnShareTop">診断結果を画像で保存</button>
+    </div>
+    <p class="toast" id="toolToast"></p>
+    <details class="history" open>
+      <summary>組み合わせの履歴<span class="lib-where"> — 直近5件をこのブラウザに自動保存</span></summary>
+      <ul id="historyList"></ul>
+      <div class="lib-actions">
+        <button type="button" class="tbtn" id="btnFileSave" hidden>この組み合わせをファイルに保存</button>
+        <button type="button" class="tbtn" id="btnFileLoad">ファイルから読み込む</button>
+        <button type="button" class="tbtn" id="btnHistClear">履歴を消去</button>
+        <input type="file" id="fileLoad" accept=".json,application/json" hidden>
+      </div>
+    </details>
+    <details class="history" id="libBox" open>
+      <summary>保存したキャラクター<span id="libWhere" class="lib-where"></span></summary>
+      <ul id="libList" class="lib"></ul>
+      <div class="lib-actions">
+        <button type="button" class="tbtn" id="btnLibExport" hidden>すべてJSONで保存</button>
+        <button type="button" class="tbtn" id="btnLibImport">JSONファイルから追加</button>
+        <input type="file" id="libFileIn" accept=".json,application/json" hidden>
+      </div>
+      <p class="toast" id="libToast"></p>
+    </details>
+  </header>
+  <hr class="rule">
+
+  <div class="inputs" id="inputs"></div>
+
+  <section class="result" id="result" aria-live="polite">
+    <div class="result-top">
+      <div class="card">
+        <p class="card-title">DIAGNOSIS</p>
+        <div class="verdict">
+          <div class="ring">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="track" cx="60" cy="60" r="52"></circle>
+              <circle class="fill" id="ringFill" cx="60" cy="60" r="52" stroke-dasharray="326.73" stroke-dashoffset="326.73"></circle>
+            </svg>
+            <div class="center"><span class="score" id="score">0</span><span class="rank" id="rank">-</span></div>
+          </div>
+          <div class="kind-block">
+            <h2 class="kind-title" id="kindTitle"></h2>
+            <p id="kindDesc"></p>
+          </div>
+        </div>
+        <div class="bars" id="bars"></div>
+      </div>
+
+      <div class="card chart-wrap">
+        <p class="card-title" style="align-self:flex-start;margin:0">STATUS OVERLAY</p>
+        <canvas id="chart" width="880" height="880" role="img" aria-label="2人のステータス六角形の重ね合わせ"></canvas>
+        <div class="legend">
+          <span><i class="a"></i><b id="lgA">A</b></span>
+          <span><i class="b"></i><b id="lgB">B</b></span>
+          <span><i class="u"></i>2人合わせた到達範囲</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="points">
+      <div class="card good"><h3>相性の良いところ</h3><ul id="goods"></ul></div>
+      <div class="card warn"><h3>気をつけたいところ</h3><ul id="warns"></ul></div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">STATUS COMPARISON</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>能力</th><th id="thA">A</th><th id="thB">B</th><th>関係</th></tr></thead>
+        <tbody id="statBody"></tbody>
+      </table></div>
+    </div>
+
+    <div class="save-row">
+      <button type="button" class="save-btn" id="btnShare">診断結果を画像で保存</button>
+      <p class="toast" id="toast"></p>
+    </div>
+
+    <p class="note">診断の重みは 性格30%・境遇20%・好きなもの20%・能力30%。能力は「二人で穴を埋め合えるか」を重視します。あくまで創作の目安として、物語の関係づくりにお使いください。</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- data ---------- */
+  var STAT_DEFS = [
+    { key: "academic", kanji: "学力", sub: "ACADEMIC" },
+    { key: "command",  kanji: "指揮", sub: "COMMAND" },
+    { key: "agility",  kanji: "敏捷", sub: "AGILITY" },
+    { key: "combat",   kanji: "戦闘", sub: "COMBAT" },
+    { key: "stamina",  kanji: "体力", sub: "STAMINA" },
+    { key: "idea",     kanji: "発想", sub: "IDEA" }
+  ];
+  var MAX = 10, CEIL = 99;
+  var DEFAULT_SKIN = "retro";
+
+  // axes: e=社交 w=温かさ c=規律 d=主導欲 o=開放性 (-1..1)
+  var TRAITS = [
+    { id: "明るい", e: .8, w: .5, c: 0, d: .2, o: .4, kw: ["明るい", "陽気", "元気", "笑顔", "ポジティブ"] },
+    { id: "冷静", e: -.2, w: -.1, c: .6, d: .2, o: .1, kw: ["冷静", "クール", "落ち着", "沈着", "理知"] },
+    { id: "情熱的", e: .6, w: .4, c: -.3, d: .6, o: .4, kw: ["情熱", "熱血", "熱い", "熱意"] },
+    { id: "慎重", e: -.4, w: 0, c: .7, d: -.3, o: -.4, kw: ["慎重", "用心深", "警戒", "石橋"] },
+    { id: "優しい", e: .2, w: .9, c: .1, d: -.5, o: .2, kw: ["優しい", "やさしい", "思いやり", "穏やか", "親切"] },
+    { id: "頑固", e: 0, w: -.3, c: .3, d: .7, o: -.8, kw: ["頑固", "意地っ張り", "融通が利かない", "頑な"] },
+    { id: "皮肉屋", e: -.1, w: -.6, c: 0, d: .3, o: .2, kw: ["皮肉", "毒舌", "口が悪い", "ひねくれ", "斜に構え"] },
+    { id: "臆病", e: -.6, w: .1, c: .2, d: -.8, o: -.3, kw: ["臆病", "怖がり", "小心", "びびり", "弱気"] },
+    { id: "好奇心旺盛", e: .4, w: .3, c: -.4, d: .1, o: .9, kw: ["好奇心", "探求", "興味津々", "知りたがり"] },
+    { id: "真面目", e: -.1, w: .2, c: .9, d: .1, o: -.3, kw: ["真面目", "生真面目", "堅実", "几帳面", "勤勉"] },
+    { id: "自由奔放", e: .5, w: .2, c: -.8, d: .2, o: .7, kw: ["自由", "奔放", "気まま", "型破り"] },
+    { id: "負けず嫌い", e: .2, w: -.2, c: .2, d: .9, o: 0, kw: ["負けず嫌い", "負けん気", "ライバル心", "勝ち気"] },
+    { id: "誠実", e: 0, w: .6, c: .7, d: -.1, o: 0, kw: ["誠実", "正直", "実直", "義理堅", "律儀"] },
+    { id: "野心家", e: .2, w: -.3, c: .3, d: .9, o: .3, kw: ["野心", "野望", "出世", "上昇志向", "覇道"] },
+    { id: "内向的", e: -.9, w: 0, c: .3, d: -.4, o: 0, kw: ["内向", "人見知り", "無口", "寡黙", "引っ込み思案"] },
+    { id: "面倒見が良い", e: .4, w: .8, c: .4, d: .3, o: 0, kw: ["面倒見", "世話焼き", "お人好し", "兄貴", "姉御"] },
+    { id: "マイペース", e: -.2, w: .1, c: -.4, d: -.1, o: .3, kw: ["マイペース", "のんびり", "ぼんやり", "天然"] },
+    { id: "お調子者", e: .9, w: .4, c: -.5, d: 0, o: .5, kw: ["お調子者", "調子に乗", "ムードメーカー", "おしゃべり"] },
+    { id: "社交的", e: .8, w: .4, c: .1, d: .3, o: .4, kw: ["社交", "人懐こ", "フレンドリー"] },
+    { id: "照れ屋", e: -.4, w: .4, c: .1, d: -.4, o: 0, kw: ["照れ", "恥ずかし"] },
+    { id: "寂しがり", e: .3, w: .5, c: -.1, d: -.5, o: .1, kw: ["寂しがり", "さみしがり", "孤独が苦手"] },
+    { id: "楽観的", e: .5, w: .4, c: -.3, d: 0, o: .4, kw: ["楽観", "楽天"] },
+    { id: "悲観的", e: -.4, w: -.2, c: .3, d: -.4, o: -.4, kw: ["悲観", "ネガティブ"] },
+    { id: "気高い", e: 0, w: .1, c: .6, d: .6, o: -.2, kw: ["気高", "誇り高"] },
+    { id: "高慢", e: .1, w: -.6, c: .2, d: .8, o: -.4, kw: ["高慢", "傲慢", "うぬぼれ", "見下"] },
+    { id: "謙虚", e: -.2, w: .6, c: .4, d: -.6, o: .1, kw: ["謙虚", "控えめ"] },
+    { id: "短気", e: .3, w: -.3, c: -.5, d: .6, o: -.2, kw: ["短気", "怒りっぽ", "キレやす"] },
+    { id: "気まぐれ", e: .2, w: 0, c: -.7, d: .1, o: .6, kw: ["気まぐれ", "移り気"] },
+    { id: "情に厚い", e: .4, w: .9, c: .1, d: .2, o: 0, kw: ["情に厚", "人情", "義理人情"] },
+    { id: "冷徹", e: -.4, w: -.8, c: .7, d: .6, o: -.2, kw: ["冷徹", "冷酷", "非情"] },
+    { id: "正義感が強い", e: .3, w: .4, c: .6, d: .6, o: -.1, kw: ["正義", "義侠"] },
+    { id: "ずる賢い", e: .2, w: -.5, c: -.2, d: .4, o: .4, kw: ["ずる賢", "狡猾", "策士", "悪知恵"] },
+    { id: "純粋", e: .3, w: .6, c: -.1, d: -.4, o: .5, kw: ["純粋", "無垢", "ピュア"] },
+    { id: "素直", e: .2, w: .6, c: .2, d: -.3, o: .4, kw: ["素直"] },
+    { id: "疑り深い", e: -.4, w: -.6, c: .4, d: .1, o: -.5, kw: ["疑り深", "猜疑", "人を信じ"] },
+    { id: "努力家", e: 0, w: .3, c: .8, d: .4, o: .1, kw: ["努力", "ひたむき", "コツコツ"] },
+    { id: "怠け者", e: -.1, w: 0, c: -.8, d: -.5, o: -.1, kw: ["怠け", "面倒くさがり", "ぐうたら", "サボ"] },
+    { id: "おおらか", e: .3, w: .7, c: -.2, d: -.2, o: .5, kw: ["おおらか", "大らか", "寛容"] },
+    { id: "神経質", e: -.4, w: -.1, c: .8, d: -.1, o: -.4, kw: ["神経質", "潔癖", "細かい"] },
+    { id: "大胆", e: .5, w: .1, c: -.4, d: .7, o: .6, kw: ["大胆", "豪胆"] },
+    { id: "勇敢", e: .4, w: .4, c: .2, d: .6, o: .3, kw: ["勇敢", "勇気", "果敢"] },
+    { id: "執念深い", e: -.3, w: -.5, c: .4, d: .5, o: -.5, kw: ["執念深", "根に持", "しつこ"] },
+    { id: "ミステリアス", e: -.5, w: -.2, c: .3, d: .2, o: .3, kw: ["ミステリアス", "謎めい", "秘密主義"] },
+    { id: "ロマンチスト", e: .1, w: .6, c: -.3, d: -.2, o: .7, kw: ["ロマンチスト", "夢見がち", "ロマン"] },
+    { id: "現実主義", e: -.1, w: -.2, c: .6, d: .2, o: -.4, kw: ["現実主義", "現実的", "リアリスト"] },
+    { id: "理想主義", e: .2, w: .4, c: .2, d: .4, o: .6, kw: ["理想"] },
+    { id: "責任感が強い", e: .1, w: .4, c: .9, d: .3, o: -.2, kw: ["責任感"] },
+    { id: "不器用", e: -.4, w: .3, c: .2, d: -.3, o: -.2, kw: ["不器用", "口下手"] },
+    { id: "気配り上手", e: .3, w: .8, c: .5, d: -.2, o: .1, kw: ["気配り", "気が利く", "気遣い"] },
+    { id: "独立独歩", e: -.3, w: -.2, c: .3, d: .5, o: .3, kw: ["一匹狼", "独立", "孤高"] },
+    { id: "依存的", e: .2, w: .4, c: -.2, d: -.8, o: -.2, kw: ["依存", "甘えん坊", "頼りっきり"] },
+    { id: "ストイック", e: -.3, w: -.1, c: .9, d: .4, o: -.1, kw: ["ストイック", "禁欲", "自分に厳しい"] },
+    { id: "おせっかい", e: .5, w: .6, c: -.1, d: .5, o: .1, kw: ["おせっかい", "お節介"] },
+    { id: "無鉄砲", e: .5, w: .1, c: -.8, d: .6, o: .5, kw: ["無鉄砲", "無謀", "猪突猛進", "考えなし"] }
+  ];
+
+  // p=特権(-1貧..1富) wound=心の傷 duty=責任 wander=放浪
+  var BGS = [
+    { id: "孤児", p: -.6, wound: .9, duty: .2, wander: .5, kw: ["孤児", "親を亡く", "身寄りがない", "みなしご"] },
+    { id: "貴族・名家", p: .9, wound: .2, duty: .8, wander: -.2, kw: ["貴族", "名家", "令嬢", "御曹司"] },
+    { id: "平民・庶民", p: -.2, wound: .2, duty: .3, wander: 0, kw: ["平民", "庶民", "普通の家"] },
+    { id: "軍人・騎士", p: .2, wound: .4, duty: .9, wander: .2, kw: ["軍人", "騎士", "兵士", "傭兵", "戦場"] },
+    { id: "放浪者", p: -.4, wound: .4, duty: 0, wander: .9, kw: ["放浪", "旅人", "旅から旅", "流れ者"] },
+    { id: "天才・エリート", p: .6, wound: .3, duty: .4, wander: 0, kw: ["天才", "エリート", "神童", "首席"] },
+    { id: "喪失を経験", p: 0, wound: .9, duty: .2, wander: .2, kw: ["喪失", "失った", "亡くし", "死別", "戦争で"] },
+    { id: "復讐を誓う", p: 0, wound: .9, duty: .3, wander: .4, kw: ["復讐", "仇", "報復"] },
+    { id: "裕福な家庭", p: .7, wound: .1, duty: .3, wander: -.2, kw: ["裕福", "お金持ち", "資産家", "豪商"] },
+    { id: "貧しい生い立ち", p: -.8, wound: .5, duty: .3, wander: .1, kw: ["貧しい", "貧困", "スラム", "貧乏"] },
+    { id: "田舎の出身", p: -.3, wound: .1, duty: .3, wander: -.2, kw: ["田舎", "農村", "辺境", "山村"] },
+    { id: "都会育ち", p: .3, wound: .1, duty: .2, wander: -.1, kw: ["都会", "都市", "王都", "城下"] },
+    { id: "家業を継ぐ", p: .4, wound: .2, duty: .9, wander: -.3, kw: ["家業", "跡継ぎ", "後継", "継ぐ"] },
+    { id: "追放・逃亡", p: -.5, wound: .7, duty: 0, wander: .8, kw: ["追放", "逃亡", "逃げ", "お尋ね者", "勘当"] },
+    { id: "師のもとで修行", p: 0, wound: .2, duty: .6, wander: .1, kw: ["師匠", "弟子", "修行", "見習い"] },
+    { id: "商人の子", p: .3, wound: .1, duty: .5, wander: .3, kw: ["商人", "商家", "行商"] },
+    { id: "農家の出", p: -.3, wound: .1, duty: .5, wander: -.3, kw: ["農家", "百姓", "畑"] },
+    { id: "漁村の出身", p: -.3, wound: .2, duty: .4, wander: .1, kw: ["漁村", "漁師", "港町"] },
+    { id: "王族の血筋", p: .9, wound: .3, duty: .9, wander: -.2, kw: ["王族", "王子", "王女", "王家の血", "血筋"] },
+    { id: "庶子・妾の子", p: .2, wound: .7, duty: .3, wander: .1, kw: ["庶子", "妾の子", "私生児", "愛人の子"] },
+    { id: "兄弟と死別", p: 0, wound: .8, duty: .3, wander: .1, kw: ["兄を亡く", "弟を亡く", "姉を亡く", "妹を亡く", "兄弟と死別", "双子の"] },
+    { id: "魔法学院で学んだ", p: .4, wound: .1, duty: .4, wander: 0, kw: ["魔法学院", "学院", "魔術師の卵", "アカデミー"] },
+    { id: "神殿・教会育ち", p: 0, wound: .3, duty: .7, wander: -.2, kw: ["神殿", "教会", "修道", "神官", "聖職"] },
+    { id: "盗賊団の出身", p: -.6, wound: .6, duty: 0, wander: .6, kw: ["盗賊", "スリ", "山賊", "泥棒"] },
+    { id: "元奴隷", p: -.9, wound: .9, duty: .1, wander: .4, kw: ["奴隷", "隷属"] },
+    { id: "元囚人", p: -.6, wound: .7, duty: 0, wander: .4, kw: ["囚人", "投獄", "牢獄", "服役"] },
+    { id: "戦争孤児", p: -.5, wound: .9, duty: .3, wander: .4, kw: ["戦争孤児", "戦災", "戦火"] },
+    { id: "故郷を失った", p: -.2, wound: .8, duty: .2, wander: .6, kw: ["故郷を失", "村を焼", "滅ぼされ", "故郷が"] },
+    { id: "異国の出身", p: 0, wound: .3, duty: .2, wander: .6, kw: ["異国", "外国", "海の向こう", "遠い国"] },
+    { id: "異種族の血", p: 0, wound: .6, duty: .2, wander: .4, kw: ["異種族", "ハーフ", "エルフ", "獣人", "半魔", "混血"] },
+    { id: "呪い・宿命を背負う", p: 0, wound: .7, duty: .7, wander: .3, kw: ["呪い", "宿命", "運命に", "預言", "予言"] },
+    { id: "記憶を失っている", p: 0, wound: .6, duty: 0, wander: .5, kw: ["記憶を失", "記憶喪失", "過去を覚えて"] },
+    { id: "秘密の使命を負う", p: .2, wound: .3, duty: .9, wander: .4, kw: ["使命", "密命", "極秘任務", "秘密の任務"] },
+    { id: "王家に仕える", p: .3, wound: .2, duty: .9, wander: -.1, kw: ["仕え", "近衛", "宮廷", "従者", "侍従"] },
+    { id: "傭兵稼業", p: -.2, wound: .4, duty: .3, wander: .7, kw: ["傭兵稼業", "雇われ", "賞金稼ぎ"] },
+    { id: "冒険者ギルド所属", p: 0, wound: .2, duty: .4, wander: .7, kw: ["冒険者", "ギルド"] },
+    { id: "学者の家系", p: .5, wound: .1, duty: .6, wander: -.3, kw: ["学者", "研究者の家", "博士"] },
+    { id: "職人の弟子", p: -.1, wound: .1, duty: .6, wander: -.2, kw: ["職人", "鍛冶", "工房"] },
+    { id: "医者・薬師の家", p: .3, wound: .2, duty: .7, wander: -.1, kw: ["医者", "薬師", "医師", "薬屋"] },
+    { id: "裏切りを受けた", p: 0, wound: .8, duty: .2, wander: .3, kw: ["裏切", "騙され", "陥れられ"] },
+    { id: "友を守れなかった", p: 0, wound: .9, duty: .5, wander: .2, kw: ["守れなかった", "救えなかった", "見殺し", "親友を"] },
+    { id: "英雄の子", p: .5, wound: .4, duty: .8, wander: -.1, kw: ["英雄の子", "英雄の息子", "英雄の娘", "勇者の子"] },
+    { id: "没落した家", p: -.2, wound: .7, duty: .6, wander: .2, kw: ["没落", "落ちぶれ", "家が潰れ", "お家断絶"] },
+    { id: "過保護に育った", p: .6, wound: 0, duty: .2, wander: -.4, kw: ["過保護", "箱入り", "甘やかされ"] },
+    { id: "孤独な幼少期", p: .1, wound: .7, duty: .2, wander: 0, kw: ["孤独な幼少", "一人で育", "友達がいなかった", "ひとりぼっち"] }
+  ];
+
+  var LIKE_CATS = [
+    { id: "食べ物", kw: ["食", "料理", "肉", "魚", "ラーメン", "カレー", "甘", "菓子", "ケーキ", "パン", "寿司", "果物", "りんご", "スイーツ", "茶", "コーヒー"] },
+    { id: "お酒", kw: ["酒", "ワイン", "ビール", "ウイスキー", "エール"] },
+    { id: "自然・動物", kw: ["自然", "森", "山", "海", "川", "花", "空", "星", "月", "動物", "猫", "犬", "鳥", "釣り", "散歩", "旅"] },
+    { id: "学問・読書", kw: ["本", "読書", "勉強", "研究", "歴史", "魔法", "推理", "謎", "パズル", "知識", "チェス"] },
+    { id: "戦い・鍛錬", kw: ["戦", "剣", "鍛錬", "修行", "武", "訓練", "筋トレ", "格闘", "勝負", "決闘"] },
+    { id: "音楽・芸術", kw: ["音楽", "歌", "楽器", "絵", "芸術", "踊", "詩", "演劇", "楽"] },
+    { id: "静けさ", kw: ["昼寝", "睡眠", "静か", "一人", "のんびり", "温泉", "ひなたぼっこ", "お茶"] },
+    { id: "賑わい・仲間", kw: ["祭", "宴", "パーティ", "仲間", "友達", "雑談", "冒険", "ゲーム"] },
+    { id: "お金・宝", kw: ["お金", "金貨", "宝", "財宝", "収集", "コレクション", "宝石", "金儲け"] },
+    { id: "機械・発明", kw: ["機械", "発明", "工作", "ロボット", "改造", "道具"] }
+  ];
+  var LIKE_OPPOSITES = [["静けさ", "賑わい・仲間"]];
+
+  var PAIR_RULES = [
+    ["冷静", "情熱的", 10, "熱と冷で互いの暴走とためらいを補える"],
+    ["慎重", "好奇心旺盛", 8, "好奇心を慎重さが支え、一歩目を安全に踏み出せる"],
+    ["臆病", "面倒見が良い", 12, "怖がる側を、世話焼きの側が自然に引っ張れる"],
+    ["頑固", "頑固", -12, "どちらも譲らず、意見が割れると平行線になりやすい"],
+    ["皮肉屋", "真面目", -10, "皮肉が真面目な側に刺さり、すれ違いの火種になる"],
+    ["皮肉屋", "優しい", 6, "軽口を優しさが受け止める、意外と噛み合う組み合わせ"],
+    ["負けず嫌い", "負けず嫌い", -6, "常に張り合う関係。仲間にもライバルにもなる"],
+    ["明るい", "内向的", 8, "明るい側が内向的な側の世界を広げてくれる"],
+    ["お調子者", "真面目", -6, "ノリの軽さと堅さが噛み合わず、振り回しがち"],
+    ["真面目", "自由奔放", -8, "ルールを重んじる側と破る側で価値観が真逆"],
+    ["マイペース", "面倒見が良い", 8, "世話を焼く側とされる側で役割がきれいに収まる"],
+    ["野心家", "誠実", 6, "野心を誠実さが支え、暴走のブレーキ役になる"],
+    ["好奇心旺盛", "好奇心旺盛", 8, "新しいことに一緒に飛び込める探検仲間"],
+    ["優しい", "優しい", 6, "互いを思いやり、穏やかな信頼を育てやすい"],
+    ["野心家", "野心家", -10, "どちらも上を目指すため、主導権を巡って対立しやすい"],
+    ["臆病", "臆病", -6, "決断が必要な場面で、二人とも動けなくなりがち"],
+    ["高慢", "高慢", -10, "互いに相手を見下し、プライドがぶつかり合う"],
+    ["短気", "短気", -8, "火種がつくと二人で燃え上がり、収拾がつかなくなる"],
+    ["短気", "おおらか", 8, "おおらかな側が、短気な側の熱を受け流してくれる"],
+    ["悲観的", "楽観的", 8, "楽観と悲観で、無謀さと臆病さを打ち消し合える"],
+    ["正義感が強い", "ずる賢い", -10, "正攻法を貫く側と、手段を選ばない側で信条が真っ向から対立する"],
+    ["正義感が強い", "正義感が強い", 6, "同じ志を掲げ、迷わず同じ方向を向ける"],
+    ["責任感が強い", "怠け者", -8, "責任を負う側の負担が増え、不満が溜まりやすい"],
+    ["怠け者", "おせっかい", 6, "手を焼く側と焼かれる側で、意外とバランスが取れる"],
+    ["依存的", "面倒見が良い", 10, "頼りたい側と頼られたい側の需要が一致している"],
+    ["依存的", "独立独歩", -4, "寄りかかりたい側と、距離を置きたい側で温度差が出る"],
+    ["寂しがり", "社交的", 8, "寂しがりを、社交的な側が輪の中に連れ出してくれる"],
+    ["照れ屋", "素直", 6, "素直な側の言葉が、照れ屋の心を少しずつほぐす"],
+    ["冷徹", "情に厚い", -8, "割り切る側と情に流される側で、判断が食い違う"],
+    ["神経質", "おおらか", 6, "細かい点を神経質な側が、大局をおおらかな側が見られる"],
+    ["疑り深い", "誠実", 8, "誠実な態度が、疑り深い相手の警戒を解いていく"],
+    ["疑り深い", "疑り深い", -8, "お互いに腹を探り合い、信頼が育ちにくい"],
+    ["ロマンチスト", "現実主義", 6, "夢を語る側と、地に足をつける側が支え合う"],
+    ["努力家", "努力家", 6, "互いの努力を認め合い、切磋琢磨できる"],
+    ["気まぐれ", "真面目", -6, "予定通りに動きたい側が、気まぐれに振り回される"],
+    ["ストイック", "怠け者", -8, "自分に厳しい側にとって、怠ける相手は理解しがたい"],
+    ["無鉄砲", "慎重", 6, "突っ走る側を、慎重な側が土壇場で引き止められる"],
+    ["無鉄砲", "無鉄砲", -6, "二人で突っ走り、誰もブレーキを踏まない"],
+    ["気配り上手", "不器用", 8, "気持ちを上手く伝えられない側を、察して汲み取れる"],
+    ["謙虚", "高慢", -4, "謙虚な側が一方的に下がり、対等な関係になりにくい"],
+    ["勇敢", "臆病", 6, "勇敢な側が前に立ち、臆病な側が後方から支える"]
+  ];
+
+  var SAMPLES = [
+    {
+      "A": {
+        "name": "ナシャ",
+        "traits": [
+          "負けず嫌い",
+          "明るい",
+          "冷静",
+          "優しい",
+          "マイペース",
+          "楽観的",
+          "社交的",
+          "素直",
+          "純粋",
+          "勇敢",
+          "責任感が強い",
+          "無鉄砲"
+        ],
+        "bgs": [
+          "喪失を経験",
+          "田舎の出身",
+          "師のもとで修行",
+          "故郷を失った",
+          "異国の出身",
+          "異種族の血",
+          "呪い・宿命を背負う"
+        ],
+        "likes": "家族、兄弟、短剣、オムライス",
+        "other": "活発な女の子で、かなり社交的。誰かと一緒にいる時間が好き。\n封印の一族出身で、特別な力を使うことができる。\n短剣(ナイフ)を用いた戦闘が得意だが、援護もできるサポート気質。\n色気がない。",
+        "stats": {
+          "academic": 3,
+          "command": 5,
+          "agility": 6,
+          "combat": 5,
+          "stamina": 5,
+          "idea": 3
+        }
+      },
+      "B": {
+        "name": "ヘラクレイオス",
+        "traits": [
+          "冷静",
+          "慎重",
+          "真面目",
+          "誠実",
+          "気高い",
+          "謙虚",
+          "冷徹",
+          "現実主義",
+          "責任感が強い"
+        ],
+        "bgs": [
+          "貴族・名家",
+          "喪失を経験",
+          "王族の血筋",
+          "兄弟と死別",
+          "軍人・騎士"
+        ],
+        "likes": "兄弟、剣、騎士、炎、",
+        "other": "一見すると凛々しい雰囲気で気難しそうだが、実は会話が大好きで、よく喋る人。冷静に振る舞っているのは、王としてふさわしい人物になりきるため。\n伝説の竜騎士に憧れて剣の道を進んだ。\n炎魔法を得意とする。\n王家に伝わる伝説の兜を装備すると、幻術が使えるようになる。",
+        "stats": {
+          "academic": 8,
+          "command": 9,
+          "agility": 6,
+          "combat": 9,
+          "stamina": 7,
+          "idea": 5
+        }
+      }
+    }
+  ];
+
+  /* ---------- helpers ---------- */
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  function norm(s) { return String(s || "").normalize("NFKC").toLowerCase(); }
+  function byId(list, id) { return list.filter(function (x) { return x.id === id; })[0]; }
+  function detect(list, text) {
+    var t = norm(text);
+    if (!t) return [];
+    return list.filter(function (item) {
+      return item.kw.some(function (k) { return t.indexOf(norm(k)) >= 0; });
+    }).map(function (item) { return item.id; });
+  }
+  function union(a, b) {
+    var out = a.slice();
+    b.forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
+    return out;
+  }
+  function mean(list, key) {
+    if (!list.length) return 0;
+    return list.reduce(function (s, x) { return s + x[key]; }, 0) / list.length;
+  }
+  function maxOf(list, key) {
+    return list.reduce(function (m, x) { return Math.max(m, x[key]); }, 0);
+  }
+  function blank() {
+    var stats = {};
+    STAT_DEFS.forEach(function (d) { stats[d.key] = 5; });
+    return { name: "", traits: [], bgs: [], likes: "", other: "", stats: stats };
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+  /* ---------- state ---------- */
+  var state = { A: clone(SAMPLES[0].A), B: clone(SAMPLES[0].B) };
+  var sampleIdx = 0;
+  var panels = {};
+
+  /* ---------- panels ---------- */
+  function buildPanel(key) {
+    var sec = el("section", "char");
+    sec.setAttribute("data-key", key);
+
+    var head = el("div", "char-head");
+    head.appendChild(el("span", "badge", key));
+    var nameIn = el("input", "name-input");
+    nameIn.type = "text"; nameIn.id = key + "-name"; nameIn.maxLength = 24;
+    nameIn.placeholder = "キャラクター" + key + "の名前";
+    nameIn.setAttribute("aria-label", "キャラクター" + key + "の名前");
+    head.appendChild(nameIn);
+    var saveBtn = el("button", "tbtn save-char", "保存");
+    saveBtn.type = "button";
+    saveBtn.setAttribute("aria-label", "キャラクター" + key + "を保存");
+    saveBtn.addEventListener("click", function () { saveCharacter(key, saveBtn); });
+    head.appendChild(saveBtn);
+    sec.appendChild(head);
+
+    function group(title, sub, id) {
+      var fs = el("fieldset");
+      var lg = el("legend");
+      var row = el("span", "legend-row");
+      row.appendChild(el("b", "", title));
+      row.appendChild(el("span", "", sub));
+      lg.appendChild(row);
+      fs.appendChild(lg);
+      fs.id = id;
+      return fs;
+    }
+
+    // 性格
+    var fsT = group("性格", "PERSONALITY", key + "-fs-t");
+    var chipsT = el("div", "chips");
+    var traitBtns = {};
+    TRAITS.forEach(function (t) {
+      var b = el("button", "chip", t.id);
+      b.type = "button"; b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () { toggle(state[key].traits, t.id); refresh(); });
+      traitBtns[t.id] = b; chipsT.appendChild(b);
+    });
+    fsT.appendChild(chipsT);
+    sec.appendChild(fsT);
+
+    // 境遇
+    var fsB = group("境遇", "BACKGROUND", key + "-fs-b");
+    var chipsB = el("div", "chips");
+    var bgBtns = {};
+    BGS.forEach(function (t) {
+      var b = el("button", "chip", t.id);
+      b.type = "button"; b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () { toggle(state[key].bgs, t.id); refresh(); });
+      bgBtns[t.id] = b; chipsB.appendChild(b);
+    });
+    fsB.appendChild(chipsB);
+    sec.appendChild(fsB);
+
+    // 好きなもの
+    var fsL = group("好きなもの", "LIKES", key + "-fs-l");
+    var likes = el("input", "text-in");
+    likes.type = "text"; likes.id = key + "-likes";
+    likes.placeholder = "「、」区切りで入力(例:肉料理、星、読書)";
+    likes.setAttribute("aria-label", "好きなもの");
+    fsL.appendChild(likes);
+    var detL = el("div", "detected");
+    fsL.appendChild(detL);
+    sec.appendChild(fsL);
+
+    // その他(自由記述)
+    var fsO = group("その他", "OTHER", key + "-fs-o");
+    var other = el("textarea", "text-in");
+    other.id = key + "-other"; other.rows = 3;
+    other.placeholder = "自由に書けます(例:口は悪いが根は優しい。幼い頃に村を焼かれ、師匠に拾われた)";
+    other.setAttribute("aria-label", "その他の自由記述");
+    fsO.appendChild(other);
+    var detO = el("div", "detected");
+    fsO.appendChild(detO);
+    fsO.appendChild(el("p", "hint", "書いた文章から、性格・境遇のキーワードを自動で拾って診断に加えます。"));
+    sec.appendChild(fsO);
+
+    // ステータス
+    var fsS = group("ステータス", "STATUS HEXAGON", key + "-fs-s");
+    var rangeRefs = {};
+    STAT_DEFS.forEach(function (d) {
+      var row = el("div", "stat-row");
+      row.appendChild(el("span", "kanji", d.kanji));
+      var range = el("input");
+      range.type = "range"; range.min = "1"; range.max = String(MAX); range.step = "1";
+      range.id = key + "-r-" + d.key; range.setAttribute("aria-label", d.kanji);
+      var num = el("input", "stat-num");
+      num.type = "number"; num.min = "1"; num.step = "1"; num.id = key + "-n-" + d.key;
+      num.setAttribute("aria-label", d.kanji + "の数値(基本1〜" + MAX + "、例外で" + MAX + "以上も可)");
+      range.addEventListener("input", function () { state[key].stats[d.key] = Number(range.value); refresh(); });
+      num.addEventListener("input", function () {
+        if (num.value === "") return;
+        var v = parseInt(num.value, 10);
+        if (isNaN(v)) return;
+        state[key].stats[d.key] = clamp(v, 1, CEIL);
+        refresh(num);
+      });
+      num.addEventListener("blur", function () { num.value = String(state[key].stats[d.key]); });
+      row.appendChild(range); row.appendChild(num);
+      fsS.appendChild(row);
+      rangeRefs[d.key] = { range: range, num: num };
+    });
+    fsS.appendChild(el("p", "hint", "基本は1〜10。例外的な強さは数値欄に10以上(最大99)を入力できます。"));
+    sec.appendChild(fsS);
+
+    nameIn.addEventListener("input", function () { state[key].name = nameIn.value; refresh(nameIn); });
+    other.addEventListener("input", function () { state[key].other = other.value; refresh(other); });
+    likes.addEventListener("input", function () { state[key].likes = likes.value; refresh(likes); });
+
+    panels[key] = {
+      root: sec, nameIn: nameIn, other: other, likes: likes, saveBtn: saveBtn,
+      traitBtns: traitBtns, bgBtns: bgBtns, detO: detO, detL: detL, ranges: rangeRefs
+    };
+    return sec;
+  }
+
+  function toggle(arr, v) {
+    var i = arr.indexOf(v);
+    if (i >= 0) arr.splice(i, 1); else arr.push(v);
+  }
+
+  function fillDetected(host, label, items) {
+    host.textContent = "";
+    if (!items.length) return;
+    host.appendChild(el("span", "", label));
+    items.forEach(function (t) { host.appendChild(el("span", "det-chip", t)); });
+  }
+
+  function syncPanel(key, keepFocus) {
+    var p = panels[key], s = state[key];
+    if (keepFocus !== p.nameIn) p.nameIn.value = s.name;
+    if (keepFocus !== p.other) p.other.value = s.other;
+    if (keepFocus !== p.likes) p.likes.value = s.likes;
+    Object.keys(p.traitBtns).forEach(function (id) {
+      p.traitBtns[id].setAttribute("aria-pressed", s.traits.indexOf(id) >= 0 ? "true" : "false");
+    });
+    Object.keys(p.bgBtns).forEach(function (id) {
+      p.bgBtns[id].setAttribute("aria-pressed", s.bgs.indexOf(id) >= 0 ? "true" : "false");
+    });
+    STAT_DEFS.forEach(function (d) {
+      var v = s.stats[d.key], r = p.ranges[d.key];
+      var rv = Math.min(v, MAX);
+      r.range.value = String(rv);
+      r.range.style.setProperty("--fill", ((rv - 1) / (MAX - 1) * 100) + "%");
+      if (keepFocus !== r.num) r.num.value = String(v);
+    });
+    var prof = profile(key);
+    fillDetected(p.detO, "文章から検出:",
+      prof.detTraits.map(function (t) { return "性格・" + t; }).concat(prof.detBgs.map(function (t) { return "境遇・" + t; })));
+    fillDetected(p.detL, "好みの傾向:", prof.likeCats);
+  }
+
+  /* ---------- analysis ---------- */
+  function profile(key) {
+    var s = state[key];
+    var detTraits = detect(TRAITS, s.other).filter(function (id) { return s.traits.indexOf(id) < 0; });
+    var detBgs = detect(BGS, s.other).filter(function (id) { return s.bgs.indexOf(id) < 0; });
+    var traitIds = union(s.traits, detTraits);
+    var bgIds = union(s.bgs, detBgs);
+    var tokens = norm(s.likes).split(/[、,，\/／・\n]+|\s{2,}/).map(function (t) { return t.trim(); }).filter(Boolean);
+    var likeCats = [];
+    LIKE_CATS.forEach(function (c) {
+      var hit = tokens.some(function (t) { return c.kw.some(function (k) { return t.indexOf(norm(k)) >= 0; }); });
+      if (hit) likeCats.push(c.id);
+    });
+    return {
+      name: s.name.trim() || ("キャラ" + key),
+      traits: traitIds, detTraits: detTraits,
+      tv: traitIds.map(function (id) { return byId(TRAITS, id); }),
+      bgs: bgIds, detBgs: detBgs,
+      bv: bgIds.map(function (id) { return byId(BGS, id); }),
+      tokens: tokens, likeCats: likeCats, stats: s.stats
+    };
+  }
+
+  function analyzePersonality(a, b) {
+    var goods = [], warns = [];
+    if (!a.traits.length || !b.traits.length) {
+      return { score: 50, goods: goods, warns: warns, note: "性格が未入力のため中立で評価" };
+    }
+    var s = 50;
+    var wm = (mean(a.tv, "w") + mean(b.tv, "w")) / 2;
+    s += 18 * wm;
+    if (wm > .35) goods.push("二人とも温かい気質で、信頼関係を築きやすい");
+    if (wm < -.1) warns.push("どちらもドライで辛辣な面があり、距離が縮まるまで時間がかかりそう");
+
+    s += 10 * (1 - Math.abs(mean(a.tv, "o") - mean(b.tv, "o"))) - 5;
+    s += 8 * (1 - Math.abs(mean(a.tv, "c") - mean(b.tv, "c"))) - 4;
+
+    var dA = mean(a.tv, "d"), dB = mean(b.tv, "d");
+    var clash = Math.max(0, Math.min(dA, dB) - .2);
+    s -= 30 * clash;
+    if (clash > .3) warns.push("二人とも主導権を握りたがる気質で、方針を巡って衝突しやすい");
+    var comp = Math.max(0, Math.abs(dA - dB) - .3);
+    s += Math.min(12, 16 * comp);
+    if (comp > .35) goods.push("引っ張る側と支える側が自然に分かれ、役割がぶつかりにくい");
+
+    var pairSum = 0;
+    PAIR_RULES.forEach(function (r) {
+      var x = r[0], y = r[1], hit = null;
+      if (a.traits.indexOf(x) >= 0 && b.traits.indexOf(y) >= 0) hit = [x, y];
+      else if (a.traits.indexOf(y) >= 0 && b.traits.indexOf(x) >= 0) hit = [y, x];
+      if (!hit) return;
+      pairSum += r[2];
+      var text = "「" + hit[0] + " × " + hit[1] + "」" + r[3];
+      (r[2] > 0 ? goods : warns).push(text);
+    });
+    s += clamp(pairSum, -20, 20);
+    return { score: clamp(Math.round(s), 5, 98), goods: goods, warns: warns, note: "" };
+  }
+
+  function analyzeBackground(a, b) {
+    var goods = [], warns = [];
+    if (!a.bgs.length || !b.bgs.length) {
+      return { score: 50, goods: goods, warns: warns, note: "境遇が未入力のため中立で評価" };
+    }
+    var s = 50;
+    var shared = a.bgs.filter(function (id) { return b.bgs.indexOf(id) >= 0; });
+    s += Math.min(24, shared.length * 12);
+    shared.forEach(function (id) { goods.push("共通の境遇「" + id + "」が、互いを理解する手がかりになる"); });
+
+    var wA = maxOf(a.bv, "wound"), wB = maxOf(b.bv, "wound");
+    s += 16 * Math.min(wA, wB);
+    if (Math.min(wA, wB) >= .6) goods.push("痛みを知る者同士、多くを語らなくても通じ合える");
+
+    var gap = Math.abs(mean(a.bv, "p") - mean(b.bv, "p"));
+    s -= 16 * Math.max(0, gap - .5);
+    if (gap > .8) warns.push("生まれ育ちの差が大きく、お金や身分に対する感覚がすれ違いやすい");
+
+    var dA = maxOf(a.bv, "duty"), dB = maxOf(b.bv, "duty");
+    if ((wA >= .7 && dB >= .7 && wB < .7) || (wB >= .7 && dA >= .7 && wA < .7)) {
+      s += 8;
+      goods.push("傷を抱える側を、責任感の強い側が支える構図になる");
+    }
+    if (Math.min(maxOf(a.bv, "wander"), maxOf(b.bv, "wander")) >= .7) {
+      s += 8;
+      goods.push("どちらも根無し草の暮らしを知り、旅の空の下で意気投合できる");
+    }
+    return { score: clamp(Math.round(s), 5, 98), goods: goods, warns: warns, note: "" };
+  }
+
+  function analyzeLikes(a, b) {
+    var goods = [], warns = [];
+    if (!a.tokens.length || !b.tokens.length) {
+      return { score: 50, goods: goods, warns: warns, note: "好きなものが未入力のため中立で評価" };
+    }
+    var exact = a.tokens.filter(function (t) { return b.tokens.indexOf(t) >= 0; });
+    var cats = a.likeCats.filter(function (c) { return b.likeCats.indexOf(c) >= 0; });
+    var s = 40 + exact.length * 22 + cats.length * 10;
+    exact.forEach(function (t) { goods.push("「" + t + "」が共通の好み。会話のきっかけになる"); });
+    cats.forEach(function (c) { goods.push("好みの傾向「" + c + "」が近く、一緒に楽しめる"); });
+    LIKE_OPPOSITES.forEach(function (o) {
+      var ab = a.likeCats.indexOf(o[0]) >= 0 && b.likeCats.indexOf(o[1]) >= 0;
+      var ba = a.likeCats.indexOf(o[1]) >= 0 && b.likeCats.indexOf(o[0]) >= 0;
+      if (ab || ba) { s -= 8; warns.push("「" + o[0] + "」と「" + o[1] + "」で、休日の過ごし方が正反対"); }
+    });
+    if (!exact.length && !cats.length) warns.push("好みに重なりが見つからない。共通の話題づくりが最初の課題");
+    return { score: clamp(Math.round(s), 5, 96), goods: goods, warns: warns, note: "" };
+  }
+
+  function analyzeStats(a, b, na, nb) {
+    var goods = [], warns = [];
+    var cov = 0, close = 0, comp = [], shared = [], weak = [];
+    STAT_DEFS.forEach(function (d) {
+      var x = a.stats[d.key], y = b.stats[d.key];
+      cov += Math.min(1, Math.max(x, y) / 8);
+      close += 1 - Math.min(1, Math.abs(x - y) / 10);
+      if (Math.max(x, y) >= 7 && Math.min(x, y) <= 4) comp.push({ d: d, who: x > y ? na : nb });
+      if (Math.min(x, y) >= 7) shared.push(d);
+      if (Math.max(x, y) <= 4) weak.push(d);
+    });
+    cov /= 6; close /= 6;
+    var s = 50 * cov + 25 * close + 25 * Math.min(1, comp.length / 3);
+    var cmdBoth = Math.min(a.stats.command, b.stats.command) >= 8;
+    if (cmdBoth) { s -= 8; warns.push("指揮が二人とも高く、船頭が二人いる状態。作戦の決定権を先に決めておきたい"); }
+    if (comp.length) {
+      goods.push("得意分野が補い合う:" + comp.map(function (c) { return c.d.kanji + "(" + c.who + ")"; }).join("、"));
+    }
+    if (shared.length) {
+      goods.push(shared.map(function (d) { return d.kanji; }).join("・") + "は二人とも高水準で、肩を並べて臨める");
+    }
+    if (!comp.length && close > .8) goods.push("能力値が近く、対等な立場で向き合える");
+    if (weak.length) {
+      warns.push(weak.map(function (d) { return d.kanji; }).join("・") + "は二人とも不得意。ここを突かれると弱い");
+    }
+    return {
+      score: clamp(Math.round(s), 5, 98), goods: goods, warns: warns, note: "",
+      compCount: comp.length, combatBoth: Math.min(a.stats.combat, b.stats.combat) >= 7
+    };
+  }
+
+  function rankOf(v) { return v >= 85 ? "S" : v >= 72 ? "A" : v >= 58 ? "B" : v >= 45 ? "C" : "D"; }
+
+  function relationship(o, p, b, l, s, clashy, combatBoth) {
+    if (clashy && combatBoth) return ["宿命のライバル", "力は互角、気質は火花を散らす。反発しながら互いを高め合う関係。"];
+    if (o >= 80 && s >= 70) return ["黄金のバディ", "気質も能力も噛み合う理想の相棒。二人なら大抵の困難は越えられる。"];
+    if (o >= 75 && b >= 70) return ["魂の理解者", "生い立ちの深いところで共鳴する二人。言葉にしなくても通じ合える。"];
+    if (s >= 75 && p < 55) return ["背中を預ける戦友", "気は合わなくても、戦場では最高の連携を見せる実利の相棒。"];
+    if (p >= 70 && s < 55) return ["気の合う友人", "居心地の良さは抜群。ただし、戦力の穴を埋め合う工夫は必要。"];
+    if (l >= 70 && o >= 60) return ["同好の士", "共通の趣味が二人をつなぐ。まずは好きな話題から距離が縮まる。"];
+    if (o >= 65) return ["頼れる相棒", "大きな衝突なく協力できる安定した関係。時間とともに信頼が育つ。"];
+    if (o >= 50) return ["つかず離れずの仲間", "悪くはないが決め手に欠ける関係。きっかけ次第で大きく変わる。"];
+    if (o >= 40) return ["衝突から始まる関係", "最初はぶつかるが、事件をきっかけに関係が動く余地がある。"];
+    return ["水と油", "価値観も強みもかみ合わない。物語では、最も大きな変化を生む組み合わせ。"];
+  }
+
+  function bandText(v, texts) { return v >= 70 ? texts[0] : v >= 55 ? texts[1] : v >= 42 ? texts[2] : texts[3]; }
+
+  function diagnose() {
+    var pa = profile("A"), pb = profile("B");
+    var per = analyzePersonality(pa, pb);
+    var bg = analyzeBackground(pa, pb);
+    var lk = analyzeLikes(pa, pb);
+    var st = analyzeStats(pa, pb, pa.name, pb.name);
+    var overall = Math.round(per.score * .3 + bg.score * .2 + lk.score * .2 + st.score * .3);
+    var clashy = per.warns.some(function (w) { return w.indexOf("主導権") >= 0 || w.indexOf("負けず嫌い") >= 0 || w.indexOf("頑固") >= 0; });
+    var rel = relationship(overall, per.score, bg.score, lk.score, st.score, clashy, st.combatBoth);
+    return { pa: pa, pb: pb, per: per, bg: bg, lk: lk, st: st, overall: overall, rel: rel };
+  }
+
+  /* ---------- chart ---------- */
+  var canvas = document.getElementById("chart");
+  var mainCtx = canvas.getContext("2d");
+
+  // ovr: optional {ctx, W, H, dpr} to draw onto another canvas (share image)
+  function drawChart(pa, pb, ovr) {
+    var ctx = ovr ? ovr.ctx : mainCtx;
+    var dpr, W, H;
+    if (ovr) {
+      dpr = ovr.dpr; W = ovr.W; H = ovr.H;
+    } else {
+      dpr = Math.min(window.devicePixelRatio || 1, 3);
+      var size = canvas.clientWidth || 440;
+      var backing = Math.round(size * dpr);
+      if (canvas.width !== backing) { canvas.width = backing; canvas.height = backing; }
+      W = canvas.width; H = canvas.height;
+    }
+    ctx.clearRect(0, 0, W, H);
+
+    var ink = cssVar("--ink"), muted = cssVar("--muted"), grid = cssVar("--grid");
+    var cA = cssVar("--accent"), cB = cssVar("--accent-2"), surface = cssVar("--surface"), title = cssVar("--title");
+
+    var cx = W / 2, cy = H / 2, R = W * 0.29, n = STAT_DEFS.length;
+    function ang(i) { return -Math.PI / 2 + i * (2 * Math.PI / n); }
+    function pt(i, r) { return [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))]; }
+    function frac(v) { return Math.min(v, 15) / MAX; }
+
+    for (var lvl = 2; lvl <= MAX; lvl += 2) {
+      ctx.beginPath();
+      for (var i = 0; i <= n; i++) {
+        var p = pt(i % n, R * lvl / MAX);
+        if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+      }
+      ctx.strokeStyle = grid; ctx.lineWidth = (lvl === MAX ? 2 : 1) * dpr; ctx.stroke();
+    }
+    for (var a2 = 0; a2 < n; a2++) {
+      var e = pt(a2, R);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(e[0], e[1]);
+      ctx.strokeStyle = grid; ctx.lineWidth = dpr; ctx.stroke();
+    }
+
+    function poly(vals, color, fillAlpha, dash, width) {
+      ctx.beginPath();
+      for (var j = 0; j <= n; j++) {
+        var q = pt(j % n, R * frac(vals[j % n]));
+        if (j === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+      }
+      ctx.closePath();
+      if (fillAlpha) { ctx.fillStyle = color + fillAlpha; ctx.fill(); }
+      ctx.setLineDash(dash || []);
+      ctx.strokeStyle = color; ctx.lineWidth = width * dpr; ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    var av = STAT_DEFS.map(function (d) { return pa.stats[d.key]; });
+    var bv = STAT_DEFS.map(function (d) { return pb.stats[d.key]; });
+    var uv = av.map(function (v, i) { return Math.max(v, bv[i]); });
+
+    poly(uv, muted, null, [6 * dpr, 5 * dpr], 1.5);
+    poly(av, cA, "2e", null, 2.5);
+    poly(bv, cB, "2e", null, 2.5);
+
+    [[av, cA], [bv, cB]].forEach(function (set) {
+      set[0].forEach(function (v, k) {
+        var q = pt(k, R * frac(v));
+        ctx.beginPath(); ctx.arc(q[0], q[1], 4 * dpr, 0, Math.PI * 2);
+        ctx.fillStyle = surface; ctx.fill();
+        ctx.lineWidth = 2.5 * dpr; ctx.strokeStyle = set[1]; ctx.stroke();
+      });
+    });
+
+    ctx.textAlign = "center";
+    for (var m = 0; m < n; m++) {
+      var lp = pt(m, R * 1.3);
+      ctx.fillStyle = title;
+      ctx.font = "700 " + (17 * dpr) + "px " + cssVar("--f-serif");
+      ctx.fillText(STAT_DEFS[m].kanji, lp[0], lp[1] - 2 * dpr);
+      ctx.font = "700 " + (12 * dpr) + "px " + cssVar("--f-mono");
+      ctx.fillStyle = cA; ctx.fillText(String(av[m]), lp[0] - 14 * dpr, lp[1] + 15 * dpr);
+      ctx.fillStyle = cB; ctx.fillText(String(bv[m]), lp[0] + 14 * dpr, lp[1] + 15 * dpr);
+    }
+  }
+
+  /* ---------- render results ---------- */
+  var ringFill = document.getElementById("ringFill");
+  var CIRC = 2 * Math.PI * 52;
+
+  function renderList(host, items, emptyText) {
+    host.textContent = "";
+    if (!items.length) { host.appendChild(el("li", "empty", emptyText)); return; }
+    items.forEach(function (it) {
+      var li = el("li");
+      li.appendChild(el("span", "tag", it.cat));
+      li.appendChild(el("span", "", it.text));
+      host.appendChild(li);
+    });
+  }
+
+  function render(refocus) {
+    syncPanel("A", refocus); syncPanel("B", refocus);
+    var r = diagnose();
+    var pa = r.pa, pb = r.pb;
+
+    document.getElementById("score").textContent = String(r.overall);
+    document.getElementById("rank").textContent = "RANK " + rankOf(r.overall);
+    ringFill.style.strokeDashoffset = String(CIRC * (1 - r.overall / 100));
+    document.getElementById("kindTitle").textContent = r.rel[0];
+    document.getElementById("kindDesc").textContent = r.rel[1];
+
+    var live = document.getElementById("livePair");
+    live.textContent = "";
+    live.appendChild(el("span", "a", pa.name));
+    live.appendChild(el("span", "x", "×"));
+    live.appendChild(el("span", "b", pb.name));
+    document.getElementById("liveKind").textContent = r.rel[0] + " / RANK " + rankOf(r.overall);
+    document.getElementById("livePts").textContent = String(r.overall);
+
+    var bars = document.getElementById("bars");
+    bars.textContent = "";
+    [
+      ["性格", r.per, ["気質が噛み合う", "無理なく付き合える", "ややぶつかりやすい", "衝突しやすい"]],
+      ["境遇", r.bg, ["深いところで共鳴する", "共通点がいくつかある", "背景に隔たりがある", "価値観がすれ違う"]],
+      ["好きなもの", r.lk, ["趣味がよく合う", "共通の話題がある", "重なりが少なめ", "話題探しが必要"]],
+      ["能力", r.st, ["互いの穴をよく埋める", "そこそこ補い合える", "噛み合わせに課題", "戦力に偏りがある"]]
+    ].forEach(function (row) {
+      var d = el("div", "bar-row");
+      d.appendChild(el("span", "lab", row[0]));
+      var meter = el("div", "meter"); var fill = el("i"); fill.style.width = row[1].score + "%"; meter.appendChild(fill);
+      d.appendChild(meter);
+      d.appendChild(el("span", "num", String(row[1].score)));
+      d.appendChild(el("span", "why", row[1].note || bandText(row[1].score, row[2])));
+      bars.appendChild(d);
+    });
+
+    function tagged(cat, arr) { return arr.map(function (t) { return { cat: cat, text: t }; }); }
+    var goods = [].concat(tagged("性格", r.per.goods), tagged("境遇", r.bg.goods), tagged("好み", r.lk.goods), tagged("能力", r.st.goods));
+    var warns = [].concat(tagged("性格", r.per.warns), tagged("境遇", r.bg.warns), tagged("好み", r.lk.warns), tagged("能力", r.st.warns));
+    renderList(document.getElementById("goods"), goods, "目立った相性の良さは見つかりません。入力を増やすと見つかりやすくなります。");
+    renderList(document.getElementById("warns"), warns, "大きな衝突要因は見つかりませんでした。");
+
+    document.getElementById("lgA").textContent = pa.name;
+    document.getElementById("lgB").textContent = pb.name;
+    document.getElementById("thA").textContent = pa.name;
+    document.getElementById("thB").textContent = pb.name;
+
+    var body = document.getElementById("statBody");
+    body.textContent = "";
+    STAT_DEFS.forEach(function (d) {
+      var x = pa.stats[d.key], y = pb.stats[d.key];
+      var tr = el("tr");
+      tr.appendChild(el("td", "k", d.kanji));
+      tr.appendChild(el("td", "va" + (x > y ? " hi" : ""), String(x)));
+      tr.appendChild(el("td", "vb" + (y > x ? " hi" : ""), String(y)));
+      var td = el("td"), pill, cls = "pill";
+      if (Math.max(x, y) >= 7 && Math.min(x, y) <= 4) { pill = (x > y ? pa.name : pb.name) + "が補う"; cls += " comp"; }
+      else if (Math.min(x, y) >= 7) { pill = "共に高い"; cls += " comp"; }
+      else if (Math.max(x, y) <= 4) { pill = "共に低い"; cls += " low"; }
+      else if (Math.abs(x - y) >= 3) { pill = (x > y ? pa.name : pb.name) + "が優勢"; }
+      else { pill = "拮抗"; }
+      td.appendChild(el("span", cls, pill));
+      tr.appendChild(td);
+      body.appendChild(tr);
+    });
+
+    drawChart(pa, pb);
+  }
+
+  function refresh(focusEl) { render(focusEl || null); scheduleHistory(); }
+
+  /* ---------- import & history ---------- */
+  function sanitize(c) {
+    var out = blank();
+    if (!c || typeof c !== "object") return out;
+    function ids(list, src) {
+      return (Array.isArray(src) ? src : []).filter(function (id, i, a) { return byId(list, id) && a.indexOf(id) === i; });
+    }
+    out.name = String(c.name || "").slice(0, 24);
+    out.traits = ids(TRAITS, c.traits);
+    out.bgs = ids(BGS, c.bgs);
+    out.likes = String(c.likes || "").slice(0, 300);
+    out.other = String(c.other || "").slice(0, 1000);
+    STAT_DEFS.forEach(function (d) {
+      var v = parseInt(c.stats && c.stats[d.key], 10);
+      out.stats[d.key] = isNaN(v) ? 5 : clamp(v, 1, CEIL);
+    });
+    return out;
+  }
+  function isEmptyChar(c) {
+    return !c.name.trim() && !c.traits.length && !c.bgs.length && !c.likes.trim() && !c.other.trim();
+  }
+
+  var HKEY = "character-compat-history-v1", HMAX = 5;
+  var history = [];
+  var histTimer = null;
+  var histList = document.getElementById("historyList");
+
+  function loadHistory() {
+    try {
+      var a = JSON.parse(localStorage.getItem(HKEY) || "[]");
+      if (Array.isArray(a)) {
+        history = a.filter(function (e) { return e && e.A && e.B; }).slice(0, HMAX).map(function (e) {
+          return { t: Number(e.t) || 0, score: Number(e.score) || 0, A: sanitize(e.A), B: sanitize(e.B) };
+        }).filter(function (h, i, arr) {
+          // drop duplicates saved by earlier versions (keep the newest)
+          var k = JSON.stringify([h.A, h.B]);
+          return arr.findIndex(function (x) { return JSON.stringify([x.A, x.B]) === k; }) === i;
+        });
+      }
+    } catch (e) { history = []; }
+  }
+  function persistHistory() {
+    try { localStorage.setItem(HKEY, JSON.stringify(history)); } catch (e) { /* storage unavailable: history lives for this visit only */ }
+  }
+  function scheduleHistory() {
+    clearTimeout(histTimer);
+    histTimer = setTimeout(pushHistory, 2500);
+  }
+  function pushHistory() {
+    if (isEmptyChar(state.A) && isEmptyChar(state.B)) return;
+    var a = sanitize(state.A), b = sanitize(state.B);
+    var now = JSON.stringify([a, b]);
+    // the same pair is kept once: move it to the top instead of adding a duplicate
+    history = history.filter(function (h) { return JSON.stringify([h.A, h.B]) !== now; });
+    history.unshift({ t: Date.now(), score: diagnose().overall, A: a, B: b });
+    history = history.slice(0, HMAX);
+    persistHistory();
+    renderHistory();
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function renderHistory() {
+    histList.textContent = "";
+    document.getElementById("btnHistClear").hidden = !history.length;
+    if (!history.length) {
+      histList.appendChild(el("li", "empty", "まだ履歴はありません。入力すると自動で保存されます。"));
+      return;
+    }
+    history.forEach(function (h) {
+      var li = el("li");
+      var d = new Date(h.t);
+      li.appendChild(el("span", "h-time", (d.getMonth() + 1) + "/" + d.getDate() + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes())));
+      var names = el("span", "h-names");
+      names.appendChild(el("span", "a", h.A.name.trim() || "キャラA"));
+      names.appendChild(el("span", "x", "×"));
+      names.appendChild(el("span", "b", h.B.name.trim() || "キャラB"));
+      li.appendChild(names);
+      li.appendChild(el("span", "h-score", String(h.score)));
+      var btn = el("button", "tbtn", "復元");
+      btn.type = "button";
+      btn.addEventListener("click", function () {
+        state.A = clone(h.A); state.B = clone(h.B);
+        render();
+        setToast("履歴から復元しました。", "ok");
+      });
+      li.appendChild(btn);
+      histList.appendChild(li);
+    });
+  }
+
+  var fileIn = document.getElementById("fileLoad");
+  document.getElementById("btnFileLoad").addEventListener("click", function () { fileIn.click(); });
+  fileIn.addEventListener("change", function () {
+    var f = fileIn.files && fileIn.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var d = JSON.parse(String(reader.result));
+        if (!d || !d.A || !d.B) throw new Error("format");
+        state.A = sanitize(d.A); state.B = sanitize(d.B);
+        refresh();
+        setToast("ファイルを読み込みました。", "ok");
+      } catch (e) {
+        setToast("読み込めませんでした。この診断ツールで保存したJSONファイルを選んでください。", "err");
+      }
+    };
+    reader.onerror = function () { setToast("ファイルを読み込めませんでした。", "err"); };
+    reader.readAsText(f);
+    fileIn.value = "";
+  });
+  document.getElementById("btnHistClear").addEventListener("click", function () {
+    history = [];
+    persistHistory();
+    renderHistory();
+  });
+
+  /* ---------- wiring ---------- */
+  var inputs = document.getElementById("inputs");
+  inputs.appendChild(buildPanel("A"));
+  inputs.appendChild(buildPanel("B"));
+
+  document.getElementById("btnSample").addEventListener("click", function () {
+    sampleIdx = (sampleIdx + 1) % SAMPLES.length;
+    state.A = clone(SAMPLES[sampleIdx].A);
+    state.B = clone(SAMPLES[sampleIdx].B);
+    refresh();
+  });
+  document.getElementById("btnSwap").addEventListener("click", function () {
+    var t = state.A; state.A = state.B; state.B = t;
+    refresh();
+  });
+  document.getElementById("btnClear").addEventListener("click", function () {
+    state.A = blank(); state.B = blank();
+    refresh();
+  });
+  document.getElementById("live").addEventListener("click", function () {
+    var r = document.getElementById("result");
+    r.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  });
+
+  /* ---------- share image ---------- */
+  var SERIF, MONO, SANS; // set from the active skin each time the image is built
+
+  function wrapLines(c, text, maxW) {
+    var lines = [], line = "";
+    Array.from(text).forEach(function (ch) {
+      if (line && c.measureText(line + ch).width > maxW) { lines.push(line); line = ch; } else { line += ch; }
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+  function rrect(c, x, y, w, h, rad) {
+    c.beginPath();
+    c.moveTo(x + rad, y);
+    c.arcTo(x + w, y, x + w, y + h, rad);
+    c.arcTo(x + w, y + h, x, y + h, rad);
+    c.arcTo(x, y + h, x, y, rad);
+    c.arcTo(x, y, x + w, y, rad);
+    c.closePath();
+  }
+
+  function buildShareCanvas() {
+    var r = diagnose();
+    var pa = r.pa, pb = r.pb;
+    var classic = currentSkin() === "classic";
+    SERIF = cssVar("--f-serif"); MONO = cssVar("--f-mono"); SANS = cssVar("--f-sans");
+    var W = 1080, P = 72, IW = W - P * 2;
+    var col = {
+      bg: cssVar("--bg"), surface: cssVar("--surface"), ink: cssVar("--ink"), muted: cssVar("--muted"),
+      line: cssVar("--line"), grid: cssVar("--grid"), a: cssVar("--accent"), b: cssVar("--accent-2"),
+      title: cssVar("--title"), good: cssVar("--good"), warn: cssVar("--warn")
+    };
+
+    var mc = document.createElement("canvas").getContext("2d");
+    mc.font = "500 25px " + SANS;
+    function group(list, mark, color) {
+      return list.slice(0, 3).map(function (t) { return { mark: mark, color: color, lines: wrapLines(mc, t, IW - 46) }; });
+    }
+    var items = group([].concat(r.per.goods, r.bg.goods, r.lk.goods, r.st.goods), "◎", col.good)
+      .concat(group([].concat(r.per.warns, r.bg.warns, r.lk.warns, r.st.warns), "△", col.warn));
+    var itemsH = items.reduce(function (s, it) { return s + it.lines.length * 38 + 16; }, 0);
+    var H = 1620 + (items.length ? 70 + itemsH : 0) + 110;
+
+    var cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    var c = cv.getContext("2d");
+    c.textBaseline = "alphabetic";
+
+    c.fillStyle = col.bg; c.fillRect(0, 0, W, H);
+    rrect(c, 28, 28, W - 56, H - 56, classic ? 28 : 0);
+    c.fillStyle = col.surface; c.fill();
+    c.strokeStyle = classic ? col.line : col.a; c.lineWidth = classic ? 2 : 4; c.stroke();
+
+    // header
+    c.textAlign = "left";
+    c.fillStyle = col.a; c.font = "500 22px " + MONO;
+    c.fillText("CHARACTER COMPATIBILITY", P, 118);
+    var size = 60;
+    function nameWidth(sz) {
+      c.font = "800 " + sz + "px " + SERIF;
+      return c.measureText(pa.name).width + c.measureText("  ×  ").width + c.measureText(pb.name).width;
+    }
+    while (size > 28 && nameWidth(size) > IW) size -= 2;
+    c.font = "800 " + size + "px " + SERIF;
+    var nx = P;
+    c.fillStyle = col.a; c.fillText(pa.name, nx, 198); nx += c.measureText(pa.name).width;
+    c.fillStyle = col.muted; c.fillText("  ×  ", nx, 198); nx += c.measureText("  ×  ").width;
+    c.fillStyle = col.b; c.fillText(pb.name, nx, 198);
+
+    // score ring
+    var rcx = P + 112, rcy = 380, rr = 100;
+    c.lineWidth = 20; c.lineCap = classic ? "round" : "butt";
+    c.beginPath(); c.arc(rcx, rcy, rr, 0, Math.PI * 2); c.strokeStyle = col.grid; c.stroke();
+    c.beginPath(); c.arc(rcx, rcy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * r.overall / 100);
+    c.strokeStyle = col.a; c.stroke();
+    c.textAlign = "center"; c.fillStyle = col.ink; c.font = "700 68px " + MONO;
+    c.fillText(String(r.overall), rcx, rcy + 14);
+    c.fillStyle = col.title; c.font = "800 24px " + SERIF;
+    c.fillText("RANK " + rankOf(r.overall), rcx, rcy + 52);
+
+    // relationship type
+    c.textAlign = "left";
+    var tx = P + 260, tw = W - P - tx;
+    c.fillStyle = col.ink; c.font = "800 52px " + SERIF;
+    c.fillText(r.rel[0], tx, 356);
+    c.fillStyle = col.muted; c.font = "500 25px " + SANS;
+    wrapLines(c, r.rel[1], tw).slice(0, 4).forEach(function (ln, i) { c.fillText(ln, tx, 408 + i * 40); });
+
+    // sub scores
+    var rows = [["性格", r.per], ["境遇", r.bg], ["好きなもの", r.lk], ["能力", r.st]];
+    var texts = [
+      ["気質が噛み合う", "無理なく付き合える", "ややぶつかりやすい", "衝突しやすい"],
+      ["深いところで共鳴する", "共通点がいくつかある", "背景に隔たりがある", "価値観がすれ違う"],
+      ["趣味がよく合う", "共通の話題がある", "重なりが少なめ", "話題探しが必要"],
+      ["互いの穴をよく埋める", "そこそこ補い合える", "噛み合わせに課題", "戦力に偏りがある"]
+    ];
+    rows.forEach(function (row, i) {
+      var y = 580 + i * 82;
+      c.textAlign = "left"; c.fillStyle = col.title; c.font = "700 29px " + SERIF;
+      c.fillText(row[0], P, y + 14);
+      var mx = 270, mw = 640;
+      rrect(c, mx, y, mw, 16, classic ? 8 : 0); c.fillStyle = col.grid; c.fill();
+      rrect(c, mx, y, Math.max(16, mw * row[1].score / 100), 16, classic ? 8 : 0); c.fillStyle = classic ? col.b : col.a; c.fill();
+      c.textAlign = "right"; c.fillStyle = col.ink; c.font = "700 30px " + MONO;
+      c.fillText(String(row[1].score), W - P, y + 16);
+      c.textAlign = "left"; c.fillStyle = col.muted; c.font = "500 20px " + SANS;
+      c.fillText(row[1].note || bandText(row[1].score, texts[i]), mx, y + 46);
+    });
+
+    // hexagon overlay
+    var hc = document.createElement("canvas");
+    hc.width = 1000; hc.height = 1000;
+    drawChart(pa, pb, { ctx: hc.getContext("2d"), W: 1000, H: 1000, dpr: 2.2 });
+    c.drawImage(hc, 220, 930, 640, 640);
+
+    // legend
+    c.font = "500 22px " + SANS; c.textAlign = "left";
+    var la = pa.name, lb = pb.name, gap = 50, seg = 44;
+    var total = seg + c.measureText(la).width + gap + seg + c.measureText(lb).width;
+    var lx = (W - total) / 2, ly = 1600;
+    c.lineWidth = 5; c.lineCap = "butt";
+    c.strokeStyle = col.a; c.beginPath(); c.moveTo(lx, ly - 7); c.lineTo(lx + 32, ly - 7); c.stroke();
+    c.fillStyle = col.ink; c.fillText(la, lx + seg, ly);
+    lx += seg + c.measureText(la).width + gap;
+    c.strokeStyle = col.b; c.beginPath(); c.moveTo(lx, ly - 7); c.lineTo(lx + 32, ly - 7); c.stroke();
+    c.fillStyle = col.ink; c.fillText(lb, lx + seg, ly);
+
+    // points
+    var y = 1690;
+    if (items.length) {
+      c.fillStyle = col.title; c.font = "800 30px " + SERIF; c.textAlign = "left";
+      c.fillText("相性のポイント", P, y);
+      y += 52;
+      items.forEach(function (it) {
+        c.font = "700 25px " + SANS; c.fillStyle = it.color;
+        c.fillText(it.mark, P, y);
+        c.font = "500 25px " + SANS; c.fillStyle = col.ink;
+        it.lines.forEach(function (ln, i) { c.fillText(ln, P + 46, y + i * 38); });
+        y += it.lines.length * 38 + 16;
+      });
+    }
+
+    c.textAlign = "center"; c.fillStyle = col.muted; c.font = "500 20px " + MONO;
+    c.fillText("キャラ相性診断", W / 2, H - 62);
+    return cv;
+  }
+
+  var downloadsNS = null;
+  var imgBtns = [document.getElementById("btnShareTop"), document.getElementById("btnShare")];
+  var fileBtn = document.getElementById("btnFileSave");
+  var shareBtns = imgBtns.concat([fileBtn]);
+  var toasts = [document.getElementById("toast"), document.getElementById("toolToast"), document.getElementById("libToast")];
+  function setToast(msg, kind) {
+    toasts.forEach(function (t) {
+      t.textContent = msg || "";
+      if (kind) t.setAttribute("data-kind", kind); else t.removeAttribute("data-kind");
+    });
+  }
+  function setBusy(b) { shareBtns.forEach(function (x) { x.disabled = b; }); }
+
+  function saveImage() {
+    if (!downloadsNS) return;
+    setBusy(true);
+    setToast("画像を作成中…");
+    var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    ready.then(function () {
+      var cv = buildShareCanvas();
+      return new Promise(function (resolve, reject) {
+        cv.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error("画像の生成に失敗しました。")); }, "image/png");
+      });
+    }).then(function (blob) {
+      var r = diagnose();
+      var fname = ("相性診断-" + r.pa.name + "×" + r.pb.name).replace(/[\\\/:*?"<>|]/g, "") + ".png";
+      return downloadsNS.save({ filename: fname, data: blob });
+    }).then(function (res) {
+      setToast(res && res.status === "delivered" ? "送信しました。" : "画像を保存しました。", "ok");
+    }).catch(function (err) {
+      if (err && err.code === "declined") setToast("");
+      else setToast((err && err.message) ? err.message : "保存できませんでした。", "err");
+    }).then(function () { setBusy(false); });
+  }
+  function fileBase() {
+    var r = diagnose();
+    return (r.pa.name + "×" + r.pb.name).replace(/[\\\/:*?"<>|]/g, "");
+  }
+
+  function saveData() {
+    if (!downloadsNS) return;
+    setBusy(true);
+    var payload = { app: "character-compat", version: 1, savedAt: new Date().toISOString(), A: state.A, B: state.B };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    downloadsNS.save({ filename: "相性診断データ-" + fileBase() + ".json", data: blob }).then(function () {
+      setToast("入力データを保存しました。", "ok");
+    }).catch(function (err) {
+      if (err && err.code === "declined") setToast("");
+      else setToast((err && err.message) ? err.message : "保存できませんでした。", "err");
+    }).then(function () { setBusy(false); });
+  }
+
+  shareBtns.forEach(function (b) { b.hidden = true; });
+  imgBtns.forEach(function (b) { b.addEventListener("click", saveImage); });
+  fileBtn.addEventListener("click", saveData);
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then(function (d) {
+      if (!d) return;
+      downloadsNS = d;
+      shareBtns.forEach(function (b) { b.hidden = false; });
+      renderLibrary();
+    }).catch(function () {});
+  } else {
+    // opened as a plain HTML file (no artifact runtime): save through a normal browser download
+    downloadsNS = {
+      save: function (req) {
+        return new Promise(function (resolve) {
+          var url = URL.createObjectURL(req.data);
+          var a = document.createElement("a");
+          a.href = url; a.download = req.filename;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          resolve({ status: "saved" });
+        });
+      }
+    };
+    shareBtns.forEach(function (b) { b.hidden = false; });
+  }
+
+  window.addEventListener("resize", function () { var r = diagnose(); drawChart(r.pa, r.pb); });
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    var redraw = function () { var r = diagnose(); drawChart(r.pa, r.pb); };
+    if (mq.addEventListener) mq.addEventListener("change", redraw);
+  }
+  new MutationObserver(function () { var r = diagnose(); drawChart(r.pa, r.pb); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  /* ---------- saved characters (optional library) ---------- */
+  var LIBKEY = "character-compat-library-v1";
+  var library = [];
+  var libBackend = null;
+  var libList = document.getElementById("libList");
+  var libWhere = document.getElementById("libWhere");
+
+  function makeLocalBackend() {
+    var items = [], cb = null;
+    try {
+      var a = JSON.parse(localStorage.getItem(LIBKEY) || "[]");
+      if (Array.isArray(a)) {
+        items = a.filter(function (e) { return e && e.id && e.char; }).map(function (e) {
+          return { id: String(e.id), savedAt: Number(e.savedAt) || 0, char: sanitize(e.char) };
+        });
+      }
+    } catch (e) { items = []; }
+    function persist() {
+      try { localStorage.setItem(LIBKEY, JSON.stringify(items)); } catch (e) { /* storage unavailable */ }
+      if (cb) cb(items.slice());
+    }
+    return {
+      kind: "local",
+      where: "このブラウザに保存されます",
+      btn: "ブラウザに保存",
+      newId: function () { return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); },
+      start: function (fn) { cb = fn; cb(items.slice()); },
+      save: function (id, char) {
+        var rec = { id: id, savedAt: Date.now(), char: char };
+        var i = items.map(function (x) { return x.id; }).indexOf(id);
+        if (i >= 0) items[i] = rec; else items.push(rec);
+        persist();
+        return Promise.resolve();
+      },
+      remove: function (id) {
+        items = items.filter(function (x) { return x.id !== id; });
+        persist();
+        return Promise.resolve();
+      }
+    };
+  }
+
+  function makeDbBackend(db, uid) {
+    var col = db.doc("data/users/" + uid + "/profile").collection("characters");
+    return {
+      kind: "db",
+      where: "サイトに保存されます(あなただけが見られます)",
+      btn: "サイトに保存",
+      newId: function () { return col.doc().id; },
+      start: function (fn) {
+        col.onSnapshot(function (snap) {
+          fn(snap.docs.map(function (d) {
+            var v = d.data() || {};
+            return { id: d.id, savedAt: Number(v.savedAt) || 0, char: sanitize(v.char) };
+          }));
+        }, function () { setToast("保存済みキャラクターを読み込めませんでした。", "err"); });
+      },
+      save: function (id, char) { return col.doc(id).set({ savedAt: Date.now(), char: char }); },
+      remove: function (id) { return col.doc(id).delete(); }
+    };
+  }
+
+  function dbMessage(err) {
+    if (err && err.code === "quota_exceeded") return "保存できる件数の上限に達しました。不要なキャラクターを削除してください。";
+    return (err && err.message) ? err.message : "保存できませんでした。";
+  }
+
+  function setLibrary(list) {
+    library = list.slice().sort(function (a, b) { return b.savedAt - a.savedAt; });
+    renderLibrary();
+  }
+
+  function updateLibLabels() {
+    libWhere.textContent = " — " + libBackend.where;
+    Object.keys(panels).forEach(function (k) { panels[k].saveBtn.textContent = libBackend.btn; });
+  }
+
+  function saveCharacter(key, btn) {
+    var c = sanitize(state[key]);
+    var nm = c.name.trim();
+    if (!nm) { setToast("名前を入力してから保存してください。", "err"); return; }
+    var existing = library.filter(function (x) { return x.char.name.trim() === nm; })[0];
+    var id = existing ? existing.id : libBackend.newId();
+    btn.disabled = true;
+    libBackend.save(id, c).then(function () {
+      setToast("「" + nm + "」を" + (existing ? "上書き" : "") + "保存しました。", "ok");
+      var label = btn.textContent;
+      btn.textContent = "保存しました";
+      setTimeout(function () { btn.textContent = libBackend.btn; }, 1600);
+    }).catch(function (err) {
+      setToast(dbMessage(err), "err");
+    }).then(function () { btn.disabled = false; });
+  }
+
+  function loadCharacter(key, rec) {
+    state[key] = clone(rec.char);
+    refresh();
+    setToast("「" + (rec.char.name.trim() || "無名") + "」をキャラクター" + key + "に読み込みました。", "ok");
+  }
+
+  function exportJson(obj, filename, okMsg) {
+    if (!downloadsNS) return;
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    downloadsNS.save({ filename: filename, data: blob }).then(function () {
+      setToast(okMsg, "ok");
+    }).catch(function (err) {
+      if (err && err.code === "declined") setToast("");
+      else setToast((err && err.message) ? err.message : "保存できませんでした。", "err");
+    });
+  }
+  function safeName(s) { return (s.trim() || "無名").replace(/[\\\/:*?"<>|]/g, ""); }
+
+  function exportOne(rec) {
+    exportJson(
+      { app: "character-compat", version: 1, type: "character", savedAt: new Date().toISOString(), character: rec.char },
+      "キャラクター-" + safeName(rec.char.name) + ".json",
+      "「" + (rec.char.name.trim() || "無名") + "」をJSONで保存しました。"
+    );
+  }
+  function exportAll() {
+    exportJson(
+      { app: "character-compat", version: 1, type: "characters", savedAt: new Date().toISOString(),
+        characters: library.map(function (r) { return r.char; }) },
+      "キャラクター一覧.json",
+      library.length + "人分をJSONで保存しました。"
+    );
+  }
+
+  function importCharacters(list) {
+    var chars = list.map(sanitize).filter(function (c) { return c.name.trim(); });
+    if (!chars.length) { setToast("名前のあるキャラクターが見つかりませんでした。", "err"); return; }
+    var added = 0, updated = 0;
+    var seen = {};
+    chars.reduce(function (p, c) {
+      return p.then(function () {
+        var nm = c.name.trim();
+        var existing = seen[nm] || library.filter(function (x) { return x.char.name.trim() === nm; })[0];
+        var id = existing ? existing.id : libBackend.newId();
+        seen[nm] = { id: id };
+        if (existing) updated++; else added++;
+        return libBackend.save(id, c);
+      });
+    }, Promise.resolve()).then(function () {
+      setToast("キャラクターを読み込みました(追加" + added + "件・上書き" + updated + "件)。", "ok");
+    }).catch(function (err) { setToast(dbMessage(err), "err"); });
+  }
+
+  function renderLibrary() {
+    if (!libList) return;
+    document.getElementById("btnLibExport").hidden = !downloadsNS || !library.length;
+    libList.textContent = "";
+    if (!library.length) {
+      libList.appendChild(el("li", "empty", "まだ保存したキャラクターはいません。各キャラの「保存」ボタンで、必要なときだけ保存できます。"));
+      return;
+    }
+    library.forEach(function (rec) {
+      var li = el("li");
+      var info = el("span", "lib-name");
+      info.appendChild(el("b", "", rec.char.name.trim() || "無名"));
+      var bits = rec.char.traits.slice(0, 3).concat(rec.char.bgs.slice(0, 1));
+      if (bits.length) info.appendChild(el("span", "lib-meta", bits.join("・")));
+      li.appendChild(info);
+      ["A", "B"].forEach(function (k) {
+        var b = el("button", "tbtn", k + "へ読み込む");
+        b.type = "button";
+        b.addEventListener("click", function () { loadCharacter(k, rec); });
+        li.appendChild(b);
+      });
+      if (downloadsNS) {
+        var jb = el("button", "tbtn", "JSON保存");
+        jb.type = "button";
+        jb.setAttribute("aria-label", (rec.char.name.trim() || "無名") + "をJSONで保存");
+        jb.addEventListener("click", function () { exportOne(rec); });
+        li.appendChild(jb);
+      }
+      var del = el("button", "tbtn del", "削除");
+      del.type = "button";
+      var armed = null;
+      del.addEventListener("click", function () {
+        if (!armed) {
+          del.textContent = "本当に削除";
+          armed = setTimeout(function () { armed = null; del.textContent = "削除"; }, 3000);
+          return;
+        }
+        clearTimeout(armed);
+        del.disabled = true;
+        libBackend.remove(rec.id).then(function () {
+          setToast("「" + (rec.char.name.trim() || "無名") + "」を削除しました。", "ok");
+        }).catch(function (err) {
+          setToast(dbMessage(err), "err");
+          del.disabled = false; del.textContent = "削除"; armed = null;
+        });
+      });
+      li.appendChild(del);
+      libList.appendChild(li);
+    });
+  }
+
+  document.getElementById("btnLibExport").addEventListener("click", exportAll);
+  var libFileIn = document.getElementById("libFileIn");
+  document.getElementById("btnLibImport").addEventListener("click", function () { libFileIn.click(); });
+  libFileIn.addEventListener("change", function () {
+    var f = libFileIn.files && libFileIn.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var list = null;
+      try {
+        var d = JSON.parse(String(reader.result));
+        if (d && d.character) list = [d.character];
+        else if (d && Array.isArray(d.characters)) list = d.characters;
+        else if (d && d.A && d.B) list = [d.A, d.B];
+      } catch (e) { list = null; }
+      if (!list) { setToast("読み込めませんでした。この診断ツールで保存したJSONファイルを選んでください。", "err"); return; }
+      importCharacters(list.slice(0, 200));
+    };
+    reader.onerror = function () { setToast("ファイルを読み込めませんでした。", "err"); };
+    reader.readAsText(f);
+    libFileIn.value = "";
+  });
+
+  libBackend = makeLocalBackend();
+  libBackend.start(setLibrary);
+  updateLibLabels();
+  if (window.claude && typeof window.claude.use === "function") {
+    Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function (r) {
+      if (!r[0] || !r[1]) return null;
+      return r[1].id().then(function (uid) {
+        if (!uid) return;
+        libBackend = makeDbBackend(r[0], uid);
+        libBackend.start(setLibrary);
+        updateLibLabels();
+      });
+    }).catch(function () { /* keep the browser-local library */ });
+  }
+
+  /* ---------- skin (fixed in this file) ---------- */
+  function currentSkin() { return DEFAULT_SKIN; }
+  document.documentElement.setAttribute("data-skin", DEFAULT_SKIN);
+
+  loadHistory();
+  renderHistory();
+  render();
+})();
+</script>
+
+</body>
+</html>
