@@ -282,11 +282,6 @@
   .toast[data-kind="ok"] { color: var(--good); }
   .toast[data-kind="err"] { color: var(--warn); }
 
-  .topnav { margin: -10px 0 -6px; padding: 0 4px 8px; border-bottom: 1px dotted var(--grid); font-size: 13px; }
-  .topnav a { color: var(--accent); text-decoration: none; padding: 2px 4px; }
-  .topnav a:visited { color: var(--accent); }
-  .topnav a:hover { background: var(--hover); text-decoration: underline; text-underline-offset: 3px; }
-  .topnav a:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
   .note { font-size: 12px; color: var(--muted); line-height: 1.8; margin: 0; text-align: center; }
 </style>
 
@@ -296,8 +291,6 @@
     <span class="kind" id="liveKind"></span>
     <span class="pts"><span id="livePts">0</span><small>/100</small></span>
   </button>
-
-  <nav class="topnav" aria-label="サイト内リンク"><a href="index.html">&lt; トップに戻る</a></nav>
 
   <header>
     <span class="eyebrow">CHARACTER COMPATIBILITY CHECKER</span>
@@ -571,73 +564,20 @@
 
   var SAMPLES = [
     {
-      "A": {
-        "name": "ナシャ",
-        "traits": [
-          "負けず嫌い",
-          "明るい",
-          "冷静",
-          "優しい",
-          "マイペース",
-          "楽観的",
-          "社交的",
-          "素直",
-          "純粋",
-          "勇敢",
-          "責任感が強い",
-          "無鉄砲"
-        ],
-        "bgs": [
-          "喪失を経験",
-          "田舎の出身",
-          "師のもとで修行",
-          "故郷を失った",
-          "異国の出身",
-          "異種族の血",
-          "呪い・宿命を背負う"
-        ],
-        "likes": "家族、兄弟、短剣、オムライス",
-        "other": "活発な女の子で、かなり社交的。誰かと一緒にいる時間が好き。\n封印の一族出身で、特別な力を使うことができる。\n短剣(ナイフ)を用いた戦闘が得意だが、援護もできるサポート気質。\n色気がない。",
-        "stats": {
-          "academic": 3,
-          "command": 5,
-          "agility": 6,
-          "combat": 5,
-          "stamina": 5,
-          "idea": 3
-        }
-      },
-      "B": {
-        "name": "ヘラクレイオス",
-        "traits": [
-          "冷静",
-          "慎重",
-          "真面目",
-          "誠実",
-          "気高い",
-          "謙虚",
-          "冷徹",
-          "現実主義",
-          "責任感が強い"
-        ],
-        "bgs": [
-          "貴族・名家",
-          "喪失を経験",
-          "王族の血筋",
-          "兄弟と死別",
-          "軍人・騎士"
-        ],
-        "likes": "兄弟、剣、騎士、炎、",
-        "other": "一見すると凛々しい雰囲気で気難しそうだが、実は会話が大好きで、よく喋る人。冷静に振る舞っているのは、王としてふさわしい人物になりきるため。\n伝説の竜騎士に憧れて剣の道を進んだ。\n炎魔法を得意とする。\n王家に伝わる伝説の兜を装備すると、幻術が使えるようになる。",
-        "stats": {
-          "academic": 8,
-          "command": 9,
-          "agility": 6,
-          "combat": 9,
-          "stamina": 7,
-          "idea": 5
-        }
-      }
+      A: { name: "アルト", traits: ["情熱的", "負けず嫌い", "面倒見が良い"], bgs: ["軍人・騎士", "貧しい生い立ち"], likes: "肉料理、剣の鍛錬、星",
+           other: "曲がったことが嫌いな正義感の塊。剣の師匠には今も頭が上がらない。",
+           stats: { academic: 4, command: 8, agility: 6, combat: 9, stamina: 9, idea: 3 } },
+      B: { name: "リーゼ", traits: ["冷静", "慎重", "好奇心旺盛"], bgs: ["貴族・名家", "喪失を経験"], likes: "読書、お茶、星、魔法",
+           other: "人前では控えめだが、内心はロマンチスト。魔法学院で首席だった。",
+           stats: { academic: 9, command: 5, agility: 5, combat: 4, stamina: 4, idea: 9 } }
+    },
+    {
+      A: { name: "ジン", traits: ["野心家", "皮肉屋", "冷静"], bgs: ["天才・エリート", "家業を継ぐ"], likes: "チェス、ワイン、お金",
+           other: "策士として知られ、人を信じることは滅多にない。",
+           stats: { academic: 9, command: 9, agility: 4, combat: 5, stamina: 4, idea: 8 } },
+      B: { name: "ヴァル", traits: ["負けず嫌い", "頑固", "情熱的"], bgs: ["貧しい生い立ち", "軍人・騎士"], likes: "剣の鍛錬、肉、ワイン",
+           other: "怒りっぽいが義理堅い。家が没落してからは剣一本で生きてきた。",
+           stats: { academic: 3, command: 8, agility: 7, combat: 10, stamina: 9, idea: 4 } }
     }
   ];
 
