@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>のぞき見タイムライン</title>
+<style>
+@font-face{font-family:"Shinonome";src:url("assets/font/JF-Dot-ShinonomeMin14.ttf") format("truetype");font-display:block}
+:root{
+  --bg:#000; --panel:#000; --card:#000; --line:#1f4a1a; --line2:#2f6a27;
+  --g:#6ccf55; --g-hi:#9dff7f; --sub:#3f8f33; --dim:#2a5f22;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--g);font-family:"Shinonome",monospace;font-size:14px;-webkit-font-smoothing:none;font-smooth:never}
+button,input,select{font:inherit;color:inherit}
+::selection{background:var(--g);color:#000}
+.app{display:grid;grid-template-columns:320px 1fr;height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:16px}
+main{display:flex;flex-direction:column;min-width:0;height:100vh}
+h1{font-size:28px;font-weight:normal;margin:0 0 6px}
+h1.logo{margin:0 0 8px;line-height:0}
+h1.logo img{display:block;width:100%;max-width:288px;height:auto;image-rendering:pixelated}
+.tagline{color:var(--sub);margin-bottom:16px;line-height:1.6}
+.sec{margin-bottom:18px}
+.sec h2{font-size:14px;color:var(--sub);font-weight:normal;margin:0 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line2);background:#000;padding:4px 10px;cursor:pointer;user-select:none;color:var(--sub)}
+.chip.on{background:var(--g);border-color:var(--g);color:#000}
+input[type=text],input[type=number],select{width:100%;background:#000;border:1px solid var(--line2);padding:6px 8px;outline:none;color:var(--g);border-radius:0}
+input:focus,select:focus{border-color:var(--g)}
+select option{background:#000;color:var(--g)}
+.hint{color:var(--sub);margin-top:5px;line-height:1.5}
+.row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.row label{flex:1;color:var(--sub)}
+input[type=range]{width:100%;accent-color:var(--g)}
+input[type=checkbox]{accent-color:var(--g)}
+.toggle{display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px}
+
+.topbar{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.status{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;background:var(--dim)}
+.dot.live{background:var(--g);animation:blink 1s steps(2) infinite}
+.dot.warn{background:var(--sub)} .dot.err{background:var(--dim);outline:1px solid var(--g)}
+@keyframes blink{50%{opacity:.3}}
+.stats{display:flex;gap:14px;color:var(--sub);flex-wrap:wrap}
+.stats b{color:var(--g);font-weight:normal;font-variant-numeric:tabular-nums}
+.spacer{flex:1}
+.btn{border:1px solid var(--line2);background:#000;padding:6px 14px;cursor:pointer;color:var(--g)}
+.btn:hover{border-color:var(--g)}
+.btn.primary{background:var(--g);border-color:var(--g);color:#000}
+.btn.on{background:var(--g);color:#000}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* スプライト（UI_sample.png から切り出し） */
+.spr{display:inline-block;background-image:url("assets/ui/UI_sample.png");background-repeat:no-repeat;image-rendering:pixelated;vertical-align:middle;flex:none}
+.coinbox{display:flex;align-items:center;gap:2px;padding:2px 8px;border:1px solid var(--line2)}
+.digits{display:inline-flex;align-items:center;gap:1px}
+
+.feedwrap{flex:1;overflow-y:auto;position:relative}
+.feed{max-width:720px;margin:0 auto;padding:12px 16px 60px}
+.empty{color:var(--sub);text-align:center;padding:60px 20px;line-height:1.8}
+.card{display:grid;grid-template-columns:44px 1fr;gap:12px;background:#000;border:1px solid var(--line);padding:12px 14px;margin-bottom:10px;animation:drop .3s steps(4)}
+@keyframes drop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.avatar{width:44px;height:44px;background:var(--line);object-fit:cover;filter:grayscale(1) sepia(1) hue-rotate(60deg) saturate(2.5) brightness(.85)}
+.avatar.ph{display:flex;align-items:center;justify-content:center;color:var(--g);background:#000;border:1px solid var(--line2);filter:none}
+.head{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;min-width:0}
+.name{cursor:pointer;color:var(--g-hi)}
+.name:hover{text-decoration:underline}
+.handle,.time{color:var(--sub)}
+.bio{color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.text{margin-top:6px;line-height:1.65;white-space:pre-wrap;word-break:break-word;color:var(--g)}
+mark{background:var(--g);color:#000;padding:0 2px}
+.tr-bar{display:flex;align-items:center;gap:8px;margin-top:6px;color:var(--sub)}
+.tr-bar button{border:0;background:none;color:var(--g);cursor:pointer;padding:0;text-decoration:underline}
+.orig{margin-top:6px;padding:6px 10px;border-left:2px solid var(--line2);color:var(--sub);line-height:1.6;white-space:pre-wrap;word-break:break-word;display:none}
+.card.show-orig .orig{display:block}
+.tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.tag{padding:1px 8px;border:1px solid var(--g);color:var(--g)}
+.lang{color:var(--sub);border:1px solid var(--line2);padding:0 7px}
+.open{margin-left:auto;color:var(--g);text-decoration:underline}
+.media{display:grid;gap:4px;margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.media img{width:100%;max-height:240px;object-fit:cover;border:1px solid var(--line)}
+.reply{color:var(--sub);margin-top:2px}
+.queue-pill{position:sticky;top:8px;margin:0 auto;display:none;width:max-content;background:var(--g);color:#000;padding:4px 14px;z-index:2}
+
+/* 傾向グラフ：緑一色のため、系列は線種（実線・破線・点線…）と右端の直接ラベルで区別する */
+.panel{border-bottom:1px solid var(--line);padding:10px 18px 12px;display:none}
+.panel.open{display:block}
+.panel-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.panel-head h3{margin:0;font-size:14px;font-weight:normal;color:var(--g-hi)}
+.panel-head .sub{color:var(--sub)}
+.panel-head select{width:auto;padding:3px 8px}
+.trend-body{display:grid;grid-template-columns:1fr 250px;gap:14px;align-items:start}
+.chart-box{position:relative;min-width:0}
+#chart{display:block;width:100%;height:230px;overflow:visible}
+.chart-box .gl{stroke:var(--line);stroke-width:1}
+.chart-box .ax{fill:var(--sub);font-size:14px;font-family:"Shinonome",monospace}
+.chart-box .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:butt}
+.chart-box .end{stroke:#000;stroke-width:2}
+.chart-box .dl{font-size:14px;fill:var(--g);font-family:"Shinonome",monospace}
+.chart-box .xh{stroke:var(--sub);stroke-width:1}
+.chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--sub);pointer-events:none}
+.tip{position:fixed;pointer-events:none;background:#000;border:1px solid var(--g);padding:8px 10px;display:none;width:max-content;white-space:nowrap;z-index:40}
+.tip .t{color:var(--sub);margin-bottom:4px}
+.tip .r{display:flex;align-items:center;gap:6px;line-height:1.7}
+.tip .r b{margin-left:auto;font-weight:normal;padding-left:12px}
+.sw{flex:none;display:inline-block;vertical-align:middle}
+.rank{list-style:none;margin:0;padding:0;max-height:232px;overflow-y:auto}
+.rank li{display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid #0b1f09}
+.rank .no{color:var(--sub);width:20px;text-align:right}
+.rank .v{margin-left:auto;white-space:nowrap;padding-right:6px}
+.rank .v small{color:var(--sub);font-size:14px;margin-left:2px}
+.rank li.lead{color:var(--g-hi)}
+
+/* 予想ゲーム */
+.game-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.box{border:1px solid var(--line2);padding:10px 12px}
+.box h4{margin:0 0 8px;font-weight:normal;color:var(--g-hi)}
+.picks{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
+.betrow{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:8px}
+.rules{color:var(--sub);line-height:1.7;margin:0;padding-left:18px}
+.msg{min-height:1.6em;margin-top:8px;color:var(--g-hi)}
+.timer{font-size:42px;line-height:1;color:var(--g-hi);letter-spacing:2px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-top:8px}
+.kv dt{color:var(--sub)} .kv dd{margin:0}
+.live3 li{display:flex;gap:8px} .live3 li .v{margin-left:auto}
+.live3{list-style:none;padding:0;margin:6px 0 0}
+.ok{color:var(--g-hi)} .ng{color:var(--dim);text-decoration:line-through}
+
+/* 全画面演出 */
+.overlay{position:fixed;inset:0;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:50;padding:20px;text-align:center}
+.overlay.show{display:flex}
+.overlay .flash{animation:flash .5s steps(2) 3}
+@keyframes flash{50%{opacity:0}}
+.result-table{border-collapse:collapse;margin:0 auto}
+.result-table td,.result-table th{border:1px solid var(--line2);padding:4px 12px;font-weight:normal}
+.result-table th{color:var(--sub)}
+
+/* パネルの幅が狭い時は横並びをやめて縦に積む（ウィンドウ幅ではなくパネル幅で判定） */
+.panel{container-type:inline-size;width:100%;flex:none}
+@container (max-width:760px){
+  .trend-body,.game-grid{grid-template-columns:1fr}
+  .rank{max-height:none;columns:2;column-gap:18px}
+  .rank li{break-inside:avoid}
+}
+
+/* BGM 波形 */
+.wave{display:block;width:100%;height:64px;margin-top:10px;border:1px solid var(--line2);background:#000}
+.wave-note{color:var(--sub);margin-top:4px;min-height:1.4em}
+
+/* ニコニコ風（文字だけが右から左へ流れる） */
+.niko{position:absolute;inset:0;overflow:hidden;display:none;background:#000;cursor:default}
+.view-niko .niko{display:block}
+.view-niko .feed{display:none}
+.view-niko.feedwrap{overflow:hidden}
+.nk{position:absolute;left:0;top:0;white-space:nowrap;font-size:28px;line-height:34px;color:var(--g);cursor:pointer;will-change:transform;
+  text-shadow:2px 0 0 #000,-2px 0 0 #000,0 2px 0 #000,0 -2px 0 #000}
+.nk:hover{color:var(--g-hi);text-decoration:underline}
+.nk mark{background:none;color:var(--g-hi);padding:0}
+.nk.tr::before{content:"[訳] ";color:var(--sub)}
+.niko-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--sub);pointer-events:none;text-align:center;line-height:1.8}
+
+.drawer-btn{display:none}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  aside{position:fixed;inset:0 auto 0 0;width:86%;max-width:340px;z-index:10;transform:translateX(-100%);transition:transform .2s}
+  aside.open{transform:none;box-shadow:0 0 0 9999px #000c}
+  .drawer-btn{display:inline-block}
+  .trend-body,.game-grid{grid-template-columns:1fr} .rank{max-height:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <h1 class="logo"><img src="assets/ui/logo.png" alt="のぞき見タイムライン"></h1>
+    <div class="tagline">Bluesky に今この瞬間に投稿されている内容を眺めるだけのツール。<br>登録・APIキー不要、完全リアルタイム。</div>
+
+    <div class="sec">
+      <h2>傾向（複数選択可・未選択なら全部）</h2>
+      <div class="chips" id="genres"></div>
+      <div class="hint">判定は日本語と英語のキーワードで行います。チップにマウスを乗せるとキーワード一覧が見えます。</div>
+    </div>
+
+    <div class="sec">
+      <h2>追加キーワード</h2>
+      <input type="text" id="kw" placeholder="例: ラーメン, pokemon, 新作">
+      <div class="hint">カンマ区切り。傾向と合わせて「どれか1つでも含む」投稿を表示</div>
+    </div>
+
+    <div class="sec">
+      <h2>除外ワード</h2>
+      <input type="text" id="ng" placeholder="例: 宣伝, フォロバ, nsfw">
+    </div>
+
+    <div class="sec">
+      <h2>言語</h2>
+      <select id="langSel">
+        <option value="all">すべての言語</option>
+        <option value="ja">日本語のみ</option>
+        <option value="nonja">日本語以外のみ（海外をのぞく）</option>
+        <option value="en">英語</option>
+        <option value="ko">韓国語</option>
+        <option value="zh">中国語</option>
+        <option value="es">スペイン語</option>
+        <option value="pt">ポルトガル語</option>
+        <option value="de">ドイツ語</option>
+        <option value="fr">フランス語</option>
+      </select>
+      <label class="toggle"><input type="checkbox" id="autoTr" checked> 日本語以外を自動で日本語に翻訳</label>
+      <div class="hint" id="trHint"></div>
+    </div>
+
+    <div class="sec">
+      <h2>表示設定</h2>
+      <div class="row" style="margin-top:0"><label>表示形式</label></div>
+      <select id="viewMode">
+        <option value="niko" selected>ニコニコ風（文字だけが流れる）</option>
+        <option value="card">カード（投稿をそのまま表示）</option>
+      </select>
+      <label class="toggle"><input type="checkbox" id="hideNsfw" checked> 成人向け（NSFW）の投稿を隠す</label>
+      <label class="toggle"><input type="checkbox" id="noReply"> リプライを除く</label>
+      <label class="toggle"><input type="checkbox" id="mediaOnly"> 画像つきのみ</label>
+      <div class="row"><label>流れる速さ（最大 <span id="speedVal"></span> 件/秒）</label></div>
+      <input type="range" id="speed" min="0.2" max="10" step="0.2" value="2">
+      <div class="row"><label>画面に残す件数 <span id="keepVal"></span></label></div>
+      <input type="range" id="keep" min="30" max="500" step="10" value="150">
+    </div>
+
+    <div class="sec">
+      <h2>サウンド</h2>
+      <label class="toggle"><input type="checkbox" id="bgmOn" checked> BGM（ゲーム中に再生）</label>
+      <div class="row"><label>BGM の音量 <span id="bgmVolVal"></span></label></div>
+      <input type="range" id="bgmVol" min="0" max="100" step="5" value="60">
+      <label class="toggle"><input type="checkbox" id="seOn" checked> 効果音・ボイス</label>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <button class="btn drawer-btn" id="drawerBtn">設定</button>
+      <div class="coinbox" id="coinbox" title="現在の掛金（コイン）"></div>
+      <div class="status"><span class="dot" id="dot"></span><span id="statusText">停止中</span></div>
+      <div class="stats">
+        <span>受信 <b id="stScanned">0</b></span>
+        <span>ヒット <b id="stMatched">0</b></span>
+        <span>ヒット/分 <b id="stRate">0</b></span>
+        <span>待機 <b id="stQueue">0</b></span>
+        <span>翻訳 <b id="stTr">0</b></span>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" id="gameBtn">予想ゲーム</button>
+      <button class="btn" id="trendBtn">傾向グラフ</button>
+      <button class="btn" id="clearBtn">クリア</button>
+      <button class="btn primary" id="playBtn">開始</button>
+    </div>
+
+    <!-- 予想ゲーム -->
+    <section class="panel open" id="game">
+      <div class="panel-head">
+        <h3>予想ゲーム ― <span id="gRoundLen">30</span>分後の 1位・2位・3位 を当てろ</h3>
+        <span class="spacer"></span>
+        <span class="sub">ラウンド時間</span>
+        <select id="roundLen">
+          <option value="30" selected>30分（本番）</option>
+          <option value="5">5分（お試し）</option>
+          <option value="1">1分（お試し）</option>
+        </select>
+      </div>
+
+      <div class="game-grid" id="gIdle">
+        <div class="box">
+          <h4>ジャンル予想</h4>
+          <div class="picks">
+            <span>1位</span><select id="p1"></select>
+            <span>2位</span><select id="p2"></select>
+            <span>3位</span><select id="p3"></select>
+          </div>
+          <div class="betrow"><span>掛金</span><input type="number" id="betGenre" min="0" step="1" placeholder="0"></div>
+          <h4 style="margin-top:14px">投稿数予想（任意）</h4>
+          <div class="betrow">
+            <span>予想</span><input type="number" id="countPick" min="0" step="1" placeholder="1位ジャンルの 1分あたり平均 投稿数">
+            <span>掛金</span><input type="number" id="betCount" min="0" step="1" placeholder="0">
+          </div>
+          <div class="row"><button class="btn primary" id="betBtn" style="flex:1">BET してゲーム開始</button></div>
+          <div class="msg" id="gMsg"></div>
+        </div>
+        <div class="box">
+          <h4>ルール</h4>
+          <ul class="rules">
+            <li>最初に 10 コイン配布。BET した時点で掛金は差し引かれます。</li>
+            <li>ラウンド中に受信した全投稿を全14ジャンルで数え、終了時の上位3つと順番を比べます。</li>
+            <li>ジャンル予想：3つ的中（ピタリ賞）5倍 ／ 2つ 3倍 ／ 1つ 2倍。順位まで一致で的中。</li>
+            <li>投稿数予想：1位ジャンルの「1分あたり平均投稿数」（四捨五入）を当てる。ぴったり 10倍 ／ 誤差2以内 5倍 ／ 誤差5以内 3倍。</li>
+            <li>外れた掛金は消滅。コインが 0 になるとゲームオーバー。</li>
+            <li>集計対象の言語は、BET した時点の「言語」設定に従います（現在：<span id="gLangNow"></span>）。</li>
+            <li>ラウンド中はタイムラインを停止できません。ページを閉じている間は数えられません。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="game-grid" id="gActive" style="display:none">
+        <div class="box">
+          <h4>ラウンド進行中 ― 残り時間</h4>
+          <div class="timer" id="gTimer">30:00</div>
+          <dl class="kv" id="gMine"></dl>
+          <canvas class="wave" id="wave" aria-label="BGM の音声波形"></canvas>
+          <div class="wave-note" id="waveNote"></div>
+          <div class="row"><button class="btn" id="abortBtn">ラウンド中止（掛金を返却）</button></div>
+        </div>
+        <div class="box">
+          <h4>現在の暫定順位</h4>
+          <ol class="live3" id="gLive"></ol>
+          <dl class="kv" id="gLiveInfo"></dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel open" id="trend">
+      <div class="panel-head">
+        <h3>傾向グラフ ― いま多い話題（上位6つ）</h3>
+        <span class="sub">受信した全投稿（言語設定に合うもの）を全ジャンルで判定・1分あたりの件数</span>
+        <span class="spacer"></span>
+        <select id="trendRange">
+          <option value="5">直近5分</option>
+          <option value="15" selected>直近15分</option>
+          <option value="30">直近30分</option>
+        </select>
+      </div>
+      <div class="trend-body">
+        <div class="chart-box" id="chartBox">
+          <svg id="chart" role="img" aria-label="ジャンル別投稿数の推移"></svg>
+          <div class="chart-empty" id="chartEmpty">「開始」で集計が始まります</div>
+          <div class="tip" id="tip"></div>
+        </div>
+        <ol class="rank" id="rank" aria-label="ジャンル別ランキング"></ol>
+      </div>
+    </section>
+
+    <div class="feedwrap" id="feedwrap">
+      <div class="queue-pill" id="queuePill"></div>
+      <div class="niko" id="niko"><div class="niko-empty" id="nikoEmpty">「開始」を押すと、投稿の文字がここに流れてきます。<br>文字をクリックすると元の投稿が開きます。</div></div>
+      <div class="feed" id="feed">
+        <div class="empty" id="empty">左で傾向や言語を選んで「開始」を押してください。<br>新しい投稿が上からどんどん流れてきます。<br>海外の投稿は自動で日本語に翻訳されます。<br>マウスをタイムラインに乗せている間は流れが止まります。</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 全画面演出 -->
+<div class="overlay" id="ovStart"><div id="ovStartSpr" class="flash"></div></div>
+<div class="overlay" id="ovResult">
+  <div id="ovResultSpr"></div>
+  <div id="ovResultBody"></div>
+  <button class="btn primary" id="ovResultOk">OK</button>
+</div>
+<div class="overlay" id="ovOver">
+  <div id="ovOverSpr"></div>
+  <button class="btn primary" id="retryBtn">もう一度あそぶ（10 コインから）</button>
+</div>
+
+<script>
+"use strict";
+
+/* ───────── 傾向（ジャンル）定義：日本語＋英語キーワード ───────── */
+const GENRES = [
+  {id:"game",  name:"ゲーム",       kw:["ゲーム","ガチャ","スイッチ","ps5","steam","ポケモン","モンハン","スプラ","fps","ランクマ","周回","実況","任天堂","原神","apex","valorant","ヴァロ","マイクラ","エルデン",
+    "game","gaming","gamer","nintendo","playstation","xbox","pokemon","minecraft","zelda","elden ring","speedrun","twitch"]},
+  {id:"anime", name:"アニメ・漫画", kw:["アニメ","漫画","マンガ","声優","作画","最新話","今期","ジャンプ","推しキャラ","コミケ","同人","原作","劇場版",
+    "anime","manga","cosplay","otaku","one piece","fanart","webtoon"]},
+  {id:"tech",  name:"テック・AI",   kw:["ai","chatgpt","claude","gemini","生成ai","プログラミング","エンジニア","python","javascript","rust","github","バグ","デプロイ","llm","iphone","android","ガジェット","自作pc",
+    "programming","developer","coding","software","openai","machine learning","linux","startup","typescript","open source"]},
+  {id:"pets",  name:"猫・犬・動物", kw:["猫","ねこ","ネコ","にゃ","犬","いぬ","イヌ","わんこ","柴犬","うさぎ","ハムスター","インコ","動物園","水族館","もふもふ",
+    "cat","cats","kitten","kitty","dog","dogs","puppy","doggo","bunny","rabbit","bird","birds","hamster","pet","pets","catsofbluesky","dogsofbluesky"]},
+  {id:"food",  name:"食べ物",       kw:["ラーメン","ご飯","ごはん","ランチ","夕飯","晩ごはん","朝ごはん","カレー","寿司","焼肉","スイーツ","ケーキ","カフェ","美味しい","おいしい","うまい","食べた","飲み会","ビール","コンビニ",
+    "food","lunch","dinner","breakfast","pizza","burger","coffee","recipe","cooking","baking","delicious","tacos","sushi","ramen","beer"]},
+  {id:"sports",name:"スポーツ",     kw:["野球","サッカー","試合","ゴール","ホームラン","大谷","jリーグ","プロ野球","優勝","バスケ","テニス","ラグビー","マラソン","代表戦","競馬","f1","相撲",
+    "football","soccer","baseball","basketball","nba","nfl","mlb","nhl","match","goal","touchdown","tennis","ohtani","world series","premier league"]},
+  {id:"music", name:"音楽・ライブ", kw:["ライブ","新曲","アルバム","カラオケ","フェス","ツアー","mv","ボカロ","バンド","ギター","セトリ","配信ライブ","アイドル",
+    "music","song","album","concert","guitar","band","playlist","spotify","kpop","k-pop","festival","new single"]},
+  {id:"oshi",  name:"推し活",       kw:["推し","尊い","てぇてぇ","最推し","オタク","グッズ","当選","落選","チケット","現場","生誕","vtuber","スパチャ","同担",
+    "bias","fandom","stan","fangirl","merch","hololive"]},
+  {id:"work",  name:"仕事・愚痴",   kw:["仕事","会社","上司","残業","出勤","退勤","在宅","会議","転職","給料","有給","月曜","疲れた","しんどい","辞めたい","締め切り","テレワーク",
+    "work","job","boss","office","meeting","coworker","deadline","overtime","monday","salary","layoff","burnout","exhausted"]},
+  {id:"school",name:"学校・勉強",   kw:["学校","授業","テスト","課題","レポート","受験","勉強","大学","部活","先生","単位","卒論","模試","宿題",
+    "school","class","exam","homework","study","college","university","teacher","student","thesis","finals","professor"]},
+  {id:"love",  name:"恋愛",         kw:["彼氏","彼女","好きな人","デート","片思い","告白","失恋","恋愛","マッチング","結婚","付き合","元カレ","元カノ",
+    "boyfriend","girlfriend","crush","date","dating","wedding","married","breakup","my ex","in love","valentine"]},
+  {id:"night", name:"深夜テンション",kw:["眠い","眠れない","寝れない","おやすみ","夜更かし","深夜","徹夜","まだ起きて","寝る","夜中","起きてる人",
+    "can't sleep","cant sleep","insomnia","sleepy","goodnight","good night","3am","2am","4am","all nighter","tired"]},
+  {id:"news",  name:"ニュース・地震",kw:["地震","速報","ニュース","震度","台風","大雨","警報","事故","選挙","首相","政府","円安","株価",
+    "breaking","news","earthquake","election","president","congress","senate","government","hurricane","wildfire"]},
+  {id:"weather",name:"天気・季節",  kw:["天気","雨","晴れ","暑い","寒い","雪","台風","紅葉","桜","花粉","梅雨","気温","夕焼け","空がきれい",
+    "weather","rain","sunny","snow","cold","hot","sunset","sunrise","autumn","fall leaves","storm","heatwave"]},
+];
+const GENRE_BY_ID = Object.fromEntries(GENRES.map(g=>[g.id,g]));
+
+/* ───────── スプライト（UI_sample.png 370x320 上の切り出し位置 [x, y, w, h]） ───────── */
+const SHEET = {w:370, h:320};
+const SPR = {
+  d1:[64,13,8,19], d2:[74,13,12,19], d3:[88,13,10,19], d4:[100,13,11,19], d5:[115,13,9,19],
+  d6:[128,13,8,19], d7:[140,13,12,19], d8:[157,13,10,19], d9:[173,13,10,19], d0:[191,13,10,19],
+  coin:[32,62,32,16],
+  gamestart:[192,65,135,61],
+  gameover:[57,128,153,35],
+  nice:[27,181,79,26], great:[29,212,104,27], godlike:[26,250,127,27],
+};
+function sprite(name, s=1){
+  const [x,y,w,h] = SPR[name];
+  return `<span class="spr" style="width:${w*s}px;height:${h*s}px;background-position:${-x*s}px ${-y*s}px;background-size:${SHEET.w*s}px ${SHEET.h*s}px"></span>`;
+}
+const digitSprites = (n, s=1) => `<span class="digits">${String(Math.max(0,Math.floor(n))).split("").map(c=>sprite("d"+c, s)).join("")}</span>`;
+
+/* ───────── 効果音 ───────── */
+const SE = {};
+for(const k of ["levelup","miss","plzbet","nice","great","godlike","gameover","gamestart"]){
+  SE[k] = new Audio(`assets/se/${k}.wav`); SE[k].preload = "auto";
+}
+function playSE(name){
+  const a = SE[name]; if(!a || !$("seOn").checked) return Promise.resolve();
+  a.currentTime = 0;
+  return new Promise(res=>{
+    a.onended = res;
+    a.play().catch(()=>res());
+  });
+}
+
+/* ───────── BGM と波形 ───────── */
+const bgm = new Audio("assets/bgm/reboot.mp3"); bgm.loop = true; bgm.preload = "auto";
+// ファイルを直接開いた (file://) 場合、Web Audio に通すとブラウザの制限で無音になるため、波形は出さずに普通に再生する
+const canAnalyse = location.protocol !== "file:";
+let actx = null, analyser = null;
+function ensureAudioGraph(){
+  if(!canAnalyse) return;
+  try{
+    if(!actx){
+      actx = new (window.AudioContext||window.webkitAudioContext)();
+      const src = actx.createMediaElementSource(bgm);
+      analyser = actx.createAnalyser(); analyser.fftSize = 2048;
+      src.connect(analyser); analyser.connect(actx.destination);
+    }
+    if(actx.state==="suspended") actx.resume();
+  }catch(e){}
+}
+function applyBgmVolume(){ bgm.volume = $("bgmVol").value/100; $("bgmVolVal").textContent = $("bgmVol").value; }
+function startBgm(){
+  if(!game.round || !$("bgmOn").checked) return;
+  ensureAudioGraph();
+  bgm.play().then(()=>{
+    $("waveNote").textContent = canAnalyse ? "" : "波形は Web サーバー上で開いた時に表示されます（ファイルを直接開いた場合は表示できません）";
+    drawWave();
+  }).catch(()=>{
+    // 自動再生が止められた時（ページを開き直した時など）は、次のクリックで始める
+    $("waveNote").textContent = "画面のどこかをクリックすると BGM が始まります";
+    document.addEventListener("pointerdown", ()=>{ $("waveNote").textContent=""; startBgm(); }, {once:true});
+  });
+}
+function stopBgm(){ bgm.pause(); bgm.currentTime = 0; drawWave(); }
+let waveRaf = 0;
+function drawWave(){
+  cancelAnimationFrame(waveRaf);
+  const cv = $("wave"), ctx = cv.getContext("2d");
+  const buf = analyser ? new Uint8Array(analyser.fftSize) : null;
+  const loop = ()=>{
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if(w && h){
+      if(cv.width!==w || cv.height!==h){ cv.width = w; cv.height = h; }
+      ctx.fillStyle = "#000"; ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle = "#1f4a1a"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, Math.floor(h/2)+.5); ctx.lineTo(w, Math.floor(h/2)+.5); ctx.stroke();
+      if(buf && !bgm.paused){
+        analyser.getByteTimeDomainData(buf);
+        ctx.strokeStyle = "#6ccf55"; ctx.lineWidth = 2; ctx.beginPath();
+        for(let i=0;i<buf.length;i++){
+          const x = i/(buf.length-1)*w, y = buf[i]/255*h;
+          i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+        }
+        ctx.stroke();
+      }
+    }
+    if(!bgm.paused) waveRaf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+/* ───────── 状態 ───────── */
+const $ = id => document.getElementById(id);
+const state = {
+  running:false, hover:false,
+  genres:new Set(), extraKw:[], ngKw:[],
+  queue:[], scanned:0, matched:0, hitTimes:[], translated:0,
+};
+const SETTINGS_KEY = "nozokimi-settings-v2";
+
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)||"null");
+    if(!s) return;
+    (s.genres||[]).forEach(g=>GENRE_BY_ID[g]&&state.genres.add(g));
+    $("kw").value = s.kw||""; $("ng").value = s.ng||"";
+    if(s.lang) $("langSel").value = s.lang;
+    $("autoTr").checked = s.autoTr ?? true;
+    $("noReply").checked = !!s.noReply; $("mediaOnly").checked = !!s.mediaOnly;
+    if(s.speed) $("speed").value = s.speed; if(s.keep) $("keep").value = s.keep;
+    if(s.trendRange) $("trendRange").value = s.trendRange;
+    if(s.trendOpen===false) $("trend").classList.remove("open");
+    if(s.gameOpen===false) $("game").classList.remove("open");
+    if(s.roundLen) $("roundLen").value = s.roundLen;
+    if(s.viewMode2) $("viewMode").value = s.viewMode2;
+    $("hideNsfw").checked = s.hideNsfw ?? true;
+    $("bgmOn").checked = s.bgmOn ?? true;
+    $("seOn").checked = s.seOn ?? true;
+    if(s.bgmVol!=null) $("bgmVol").value = s.bgmVol;
+  }catch(e){}
+}
+function saveSettings(){
+  try{
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      genres:[...state.genres], kw:$("kw").value, ng:$("ng").value,
+      lang:$("langSel").value, autoTr:$("autoTr").checked,
+      noReply:$("noReply").checked, mediaOnly:$("mediaOnly").checked,
+      speed:$("speed").value, keep:$("keep").value,
+      trendRange:$("trendRange").value, trendOpen:$("trend").classList.contains("open"),
+      gameOpen:$("game").classList.contains("open"), roundLen:$("roundLen").value,
+      viewMode2:$("viewMode").value, hideNsfw:$("hideNsfw").checked,
+      bgmOn:$("bgmOn").checked, seOn:$("seOn").checked, bgmVol:$("bgmVol").value,
+    }));
+  }catch(e){}
+}
+
+/* ───────── フィルタ ───────── */
+const splitKw = v => v.split(/[,、，\n]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+function readFilters(){
+  state.extraKw = splitKw($("kw").value);
+  state.ngKw = splitKw($("ng").value);
+}
+function activeKeywords(){
+  const list = [];
+  for(const id of state.genres) for(const k of GENRE_BY_ID[id].kw) list.push({k, g:id});
+  for(const k of state.extraKw) list.push({k, g:null});
+  return list;
+}
+// 英数字だけのキーワードは単語境界で判定（"cat" が "education" に当たらないように）
+const asciiRe = new Map();
+function hasKw(lower, k){
+  if(/^[a-z0-9 .+#'-]+$/.test(k)){
+    let re = asciiRe.get(k);
+    if(!re){ re = new RegExp("(^|[^a-z0-9])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[^a-z0-9])"); asciiRe.set(k,re); }
+    return re.test(lower);
+  }
+  return lower.includes(k);
+}
+/** 投稿を判定し、ヒットしたら {genres, words} を返す */
+function classify(text){
+  const lower = text.toLowerCase();
+  for(const n of state.ngKw) if(lower.includes(n)) return null;
+  const kws = activeKeywords();
+  if(kws.length===0) return {genres:[], words:[]};
+  const genres = new Set(), words = new Set();
+  for(const {k,g} of kws){
+    if(hasKw(lower,k)){ words.add(k); if(g) genres.add(g); }
+  }
+  if(words.size===0) return null;
+  return {genres:[...genres], words:[...words]};
+}
+/** 全ジャンルのうち当てはまるもののインデックス（グラフ・ゲーム用） */
+function genresOf(text){
+  const lower = text.toLowerCase();
+  const out = [];
+  GENRES.forEach((g,i)=>{ if(g.kw.some(k=>hasKw(lower,k))) out.push(i); });
+  return out;
+}
+/* 成人向け判定：投稿者が付けたラベル、アカウントのラベル、本文のキーワードで判定 */
+const NSFW_LABELS = new Set(["porn","sexual","nudity","graphic-media","gore","sexual-figurative"]);
+const NSFW_WORDS = ["nsfw","r18","r-18","r18g","18+","porn","hentai","onlyfans","fansly","nude","nudes","xxx","lewd","sex","boobs","cock","pussy","nsfwart",
+  "エロ","えろ","えっち","裏垢","アダルト","av女優","オフパコ","セックス","おっぱい","ちんこ","ちんぽ","まんこ","射精"];
+const nsfwDids = new Set();
+const hasAdultLabel = labels => (labels||[]).some(l=>NSFW_LABELS.has(l?.val));
+function isNsfwPost(r, did){
+  if(nsfwDids.has(did)) return true;
+  if(hasAdultLabel(r.labels?.values)) return true;
+  const lower = r.text.toLowerCase();
+  return NSFW_WORDS.some(k=>hasKw(lower,k));
+}
+const baseLang = l => (l||"").toLowerCase().split("-")[0];
+function langOk(langs, sel){
+  const bases = (langs||[]).map(baseLang);
+  if(sel==="all") return true;
+  if(sel==="ja") return bases.includes("ja");
+  if(sel==="nonja") return !bases.includes("ja");
+  return bases.includes(sel);
+}
+const langSelLabel = v => $("langSel").querySelector(`option[value="${v}"]`)?.textContent || v;
+
+/* ───────── 翻訳 ─────────
+   1) ブラウザ内蔵の翻訳 (Chrome の Translator API) が使えて言語モデルが入っていればそれを使う（端末内で完結）
+   2) 使えない場合は Google 翻訳の公開エンドポイントにフォールバック */
+const langName = (()=>{ try{ const dn = new Intl.DisplayNames(["ja"],{type:"language"}); return c=>{ try{ return dn.of(c)||c; }catch(e){ return c; } }; }catch(e){ return c=>c; } })();
+// 環境によって内蔵翻訳の呼び出しが返ってこないことがあるので、時間切れで諦める
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")), ms))]);
+const builtinTranslators = new Map(); // srcLang -> Promise<Translator|null>
+function getBuiltin(src){
+  if(!("Translator" in self) || !src) return Promise.resolve(null);
+  if(!builtinTranslators.has(src)){
+    builtinTranslators.set(src, (async()=>{
+      try{
+        const a = await withTimeout(Translator.availability({sourceLanguage:src, targetLanguage:"ja"}), 3000);
+        if(a!=="available") return null; // 未ダウンロードのモデルは使わない（勝手に大きなファイルを落とさない）
+        return await withTimeout(Translator.create({sourceLanguage:src, targetLanguage:"ja"}), 5000);
+      }catch(e){ return null; }
+    })());
+  }
+  return builtinTranslators.get(src);
+}
+let googleBackoffUntil = 0;
+async function googleTranslate(text, src){
+  if(Date.now() < googleBackoffUntil) throw new Error("backoff");
+  const url = "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&tl=ja&sl="
+    + encodeURIComponent(src||"auto") + "&q=" + encodeURIComponent(text);
+  const res = await fetch(url);
+  if(!res.ok){
+    if(res.status===429) googleBackoffUntil = Date.now()+60000;
+    throw new Error("HTTP "+res.status);
+  }
+  const data = await res.json();
+  return {text:(data[0]||[]).map(x=>x[0]).join(""), detected:data[2]};
+}
+// 同時実行数を絞る
+const trQueue = []; let trActive = 0; const TR_MAX = 3;
+function translate(text, src){
+  return new Promise((resolve,reject)=>{ trQueue.push({text,src,resolve,reject}); pumpTr(); });
+}
+async function pumpTr(){
+  while(trActive < TR_MAX && trQueue.length){
+    const job = trQueue.shift(); trActive++;
+    (async()=>{
+      try{
+        const t = await getBuiltin(job.src);
+        let text = null;
+        if(t){ try{ text = await withTimeout(t.translate(job.text), 8000); }catch(e){} }
+        if(text){ job.resolve({text, engine:"ブラウザ内蔵", detected:job.src}); }
+        else { const g = await withTimeout(googleTranslate(job.text, "auto"), 10000); job.resolve({text:g.text, engine:"Google", detected:job.src||g.detected}); }
+      }catch(e){ job.reject(e); }
+      finally{ trActive--; pumpTr(); }
+    })();
+  }
+}
+function needsTranslation(p){
+  if(!$("autoTr").checked) return false;
+  const bases = p.langs.map(baseLang);
+  if(bases.includes("ja")) return false;
+  if(bases.length===0) return !/[぀-ヿ]/.test(p.text); // 言語未設定でもかなが含まれていれば日本語とみなす
+  return true;
+}
+async function translateCard(card, p){
+  const bar = card.querySelector(".tr-bar");
+  const src = p.langs.length ? baseLang(p.langs[0]) : "";
+  bar.innerHTML = `[翻訳] ${src?esc(langName(src))+"から":""}翻訳中…`;
+  try{
+    const r = await translate(p.text, src);
+    if(!r.text || r.text.trim()===p.text.trim()){ bar.remove(); return; }
+    state.translated++;
+    const textEl = card.querySelector(".text");
+    const origEl = card.querySelector(".orig");
+    origEl.innerHTML = textEl.innerHTML;       // ハイライト付きの原文を退避
+    textEl.textContent = r.text;
+    const from = r.detected ? langName(baseLang(r.detected)) : "外国語";
+    bar.innerHTML = `[翻訳] ${esc(from)}から（${r.engine}）・<button type="button">原文を表示</button>`;
+    bar.querySelector("button").onclick = e=>{
+      const on = card.classList.toggle("show-orig");
+      e.target.textContent = on ? "原文を隠す" : "原文を表示";
+    };
+  }catch(e){
+    bar.innerHTML = `[翻訳] 翻訳できませんでした・<button type="button">再試行</button>`;
+    bar.querySelector("button").onclick = ()=>translateCard(card, p);
+  }
+}
+
+/* ───────── キューと表示 ───────── */
+function enqueue(post){
+  state.matched++;
+  state.hitTimes.push(Date.now());
+  state.queue.push(post);
+  if(state.queue.length>300) state.queue.splice(0, state.queue.length-300);
+}
+let lastPop = 0;
+function tick(now){
+  requestAnimationFrame(tick);
+  const interval = 1000/parseFloat($("speed").value);
+  if(viewMode()==="niko"){ nikoTick(now, interval); return updatePill(); }
+  if(state.hover || !state.queue.length) return updatePill();
+  if(now - lastPop < interval) return;
+  lastPop = now;
+  render(state.queue.shift());
+  updatePill();
+}
+function updatePill(){
+  const pill = $("queuePill");
+  if(state.hover && state.queue.length){ pill.style.display="block"; pill.textContent = `一時停止中 ― 新着 ${state.queue.length} 件待機`; }
+  else pill.style.display="none";
+}
+
+const esc = s => String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function highlight(text, words){
+  let html = esc(text);
+  if(!words.length) return html;
+  const sorted = [...words].sort((a,b)=>b.length-a.length).map(w=>esc(w).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  return html.replace(new RegExp("("+sorted.join("|")+")","gi"), "<mark>$1</mark>");
+}
+function timeAgo(d){
+  const s = Math.max(0, Math.round((Date.now()-d.getTime())/1000));
+  if(s<60) return s+"秒前"; if(s<3600) return Math.floor(s/60)+"分前";
+  return d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
+}
+
+function render(p){
+  $("empty")?.remove();
+  const feed = $("feed");
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.author = p.did;
+  const tr = needsTranslation(p);
+  const langLabel = p.langs.length ? langName(baseLang(p.langs[0])) : "";
+  card.innerHTML = `
+    <div class="av"></div>
+    <div style="min-width:0">
+      <div class="head">
+        <span class="name"></span><span class="handle"></span>
+        <span class="time" data-t="${p.time.getTime()}">${timeAgo(p.time)}</span>
+      </div>
+      <div class="bio"></div>
+      ${p.isReply?'<div class="reply">&gt; 返信</div>':""}
+      <div class="text">${highlight(p.text, p.words)}</div>
+      ${tr?'<div class="tr-bar"></div><div class="orig"></div>':""}
+      ${p.images.length?`<div class="media">${p.images.slice(0,4).map(u=>`<img loading="lazy" src="${esc(u)}" alt="">`).join("")}</div>`:""}
+      <div class="tags">
+        ${p.genres.map(g=>`<span class="tag">${GENRE_BY_ID[g].name}</span>`).join("")}
+        ${langLabel?`<span class="lang">${esc(langLabel)}</span>`:""}
+        <a class="open" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">元の投稿を開く</a>
+      </div>
+    </div>`;
+  feed.prepend(card);
+  fillAuthor(card, p.did);
+  if(tr) translateCard(card, p);
+  const keep = parseInt($("keep").value,10);
+  while(feed.children.length > keep) feed.lastElementChild.remove();
+}
+function fillAuthor(card, did){
+  // 成人向けアカウントと分かった時点で取り除く
+  if($("hideNsfw").checked && nsfwDids.has(did)){ card.remove(); return; }
+  const prof = profileCache.get(did);
+  const av = card.querySelector(".av");
+  const nameEl = card.querySelector(".name");
+  nameEl.textContent = prof ? (prof.name || prof.handle || "(不明)") : "読み込み中…";
+  card.querySelector(".handle").textContent = prof?.handle ? "@"+prof.handle : "";
+  card.querySelector(".bio").textContent = (prof?.bio||"").replace(/\s+/g," ");
+  if(prof?.avatar){
+    av.innerHTML = `<img class="avatar" loading="lazy" src="${esc(prof.avatar)}" alt="">`;
+  }else{
+    const ch = (prof?.name||prof?.handle||"?").trim().charAt(0) || "?";
+    av.innerHTML = `<div class="avatar ph">${esc(ch)}</div>`;
+  }
+  nameEl.onclick = ()=> window.open(`https://bsky.app/profile/${prof?.handle||did}`,"_blank","noopener");
+  if(!prof) requestProfile(did);
+}
+
+/* ───────── ニコニコ風表示 ─────────
+   文字だけを右から左へ流す。どのコメントも同じ時間(NIKO_DUR)で画面を横切るので、長い文ほど速く流れる。
+   追い越し・重なりが起きない段（レーン）を上から探して入れ、空きが無ければ待たせる。 */
+const NIKO_DUR = 8000, NIKO_LINE = 34, NIKO_MAXLEN = 70;
+const niko = { lanes:[], ready:[] };
+const viewMode = ()=> $("viewMode").value;
+function applyViewMode(){
+  $("feedwrap").classList.toggle("view-niko", viewMode()==="niko");
+  if(viewMode()!=="niko") clearNiko();
+}
+function clearNiko(){
+  $("niko").querySelectorAll(".nk").forEach(e=>e.remove());
+  niko.lanes = []; niko.ready = [];
+  $("nikoEmpty").style.display = "";
+}
+function laneFree(lane, wNew, W){
+  const L = niko.lanes[lane];
+  if(!L || !L.el.isConnected) return true;
+  const t = L.anim.currentTime ?? NIKO_DUR;
+  // 前の文の後ろ端が画面に入りきる & 新しい文が前の文に追いつかない、の両方を満たすまで待つ
+  const need = NIKO_DUR * Math.max(L.w/(W+L.w), wNew/(W+wNew)) + 300;
+  return t >= need;
+}
+function nikoLaunch(p, text, translated){
+  const stage = $("niko"), W = stage.clientWidth, H = stage.clientHeight;
+  if(!W || !H) return false;
+  if($("hideNsfw").checked && nsfwDids.has(p.did)) return true; // 捨てる
+  const one = text.replace(/\s+/g," ").trim();
+  const short = one.length > NIKO_MAXLEN ? one.slice(0, NIKO_MAXLEN)+"…" : one;
+  const el = document.createElement("div");
+  el.className = "nk" + (translated ? " tr" : "");
+  el.innerHTML = translated ? esc(short) : highlight(short, p.words);
+  el.title = "クリックで元の投稿を開く";
+  el.style.visibility = "hidden";
+  stage.appendChild(el);
+  const w = el.offsetWidth;
+  const lanesN = Math.max(1, Math.floor((H-8)/NIKO_LINE));
+  let lane = -1;
+  for(let i=0;i<lanesN;i++) if(laneFree(i, w, W)){ lane = i; break; }
+  if(lane < 0){ el.remove(); return false; }
+  el.style.top = (4 + lane*NIKO_LINE) + "px";
+  el.style.visibility = "";
+  const anim = el.animate([{transform:`translateX(${W}px)`},{transform:`translateX(${-w}px)`}], {duration:NIKO_DUR, easing:"linear"});
+  if(state.hover) anim.pause();
+  anim.onfinish = ()=> el.remove();
+  el.onclick = ()=> window.open(p.url, "_blank", "noopener");
+  niko.lanes[lane] = {el, anim, w};
+  $("nikoEmpty").style.display = "none";
+  return true;
+}
+function nikoTick(now, interval){
+  if(state.hover || now - lastPop < interval) return;
+  // 翻訳が終わったものを優先して流す
+  if(niko.ready.length){
+    const r = niko.ready[0];
+    if(nikoLaunch(r.p, r.text, r.tr)){ niko.ready.shift(); lastPop = now; }
+    return;
+  }
+  if(!state.queue.length || niko.ready.length + trQueue.length > 40) return;
+  const p = state.queue[0];
+  if(needsTranslation(p)){
+    state.queue.shift(); lastPop = now;
+    const src = p.langs.length ? baseLang(p.langs[0]) : "";
+    translate(p.text, src)
+      .then(r=>{ const ok = r.text && r.text.trim()!==p.text.trim(); if(ok) state.translated++; niko.ready.push({p, text: ok ? r.text : p.text, tr: ok}); })
+      .catch(()=> niko.ready.push({p, text:p.text, tr:false}));
+    return;
+  }
+  if(nikoLaunch(p, p.text, false)){ state.queue.shift(); lastPop = now; }
+}
+
+/* ───────── Bluesky (Jetstream) ───────── */
+const JETSTREAMS = [
+  "wss://jetstream2.us-east.bsky.network","wss://jetstream1.us-east.bsky.network",
+  "wss://jetstream1.us-west.bsky.network","wss://jetstream2.us-west.bsky.network",
+];
+let ws=null, jsIdx=0, reconnectTimer=null;
+function bskyStart(){
+  bskyStop();
+  setStatus("warn","Bluesky に接続中…");
+  const url = JETSTREAMS[jsIdx % JETSTREAMS.length] + "/subscribe?wantedCollections=app.bsky.feed.post";
+  ws = new WebSocket(url);
+  ws.onopen = ()=> setStatus("live","ライブ受信中");
+  ws.onmessage = ev => {
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.kind!=="commit" || m.commit?.operation!=="create") return;
+    const r = m.commit.record; if(!r || typeof r.text!=="string" || !r.text) return;
+    state.scanned++;
+    let gs = null; const getGs = ()=> gs || (gs = genresOf(r.text));
+    if(game.round && langOk(r.langs, game.round.lang)) roundCount(getGs());
+    if(!langOk(r.langs, $("langSel").value)) return;
+    trendCount(getGs());
+    if($("noReply").checked && r.reply) return;
+    const images = bskyImages(m.did, r.embed);
+    if($("mediaOnly").checked && !images.length) return;
+    if($("hideNsfw").checked && isNsfwPost(r, m.did)) return;
+    const hit = classify(r.text); if(!hit) return;
+    enqueue({
+      did:m.did, text:r.text, langs:Array.isArray(r.langs)?r.langs:[], images, isReply:!!r.reply,
+      time:new Date(r.createdAt||Date.now()), genres:hit.genres, words:hit.words,
+      url:`https://bsky.app/profile/${m.did}/post/${m.commit.rkey}`,
+    });
+    requestProfile(m.did);
+  };
+  ws.onerror = ()=>{};
+  ws.onclose = ()=>{
+    if(!state.running) return;
+    setStatus("warn","切断されました。再接続します…");
+    jsIdx++;
+    reconnectTimer = setTimeout(bskyStart, 2000);
+  };
+}
+function bskyStop(){
+  clearTimeout(reconnectTimer);
+  if(ws){ ws.onclose=null; ws.close(); ws=null; }
+}
+function bskyImages(did, embed){
+  if(!embed) return [];
+  const imgs = embed.images || embed.media?.images || [];
+  return imgs.map(i=>i?.image?.ref?.$link).filter(Boolean)
+    .map(cid=>`https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${cid}@jpeg`);
+}
+
+// プロフィールはまとめて取得してキャッシュ
+const profileCache = new Map(), pendingDids = new Set(), inflight = new Set();
+function requestProfile(did){ if(!profileCache.has(did) && !inflight.has(did)) pendingDids.add(did); }
+setInterval(async ()=>{
+  if(!pendingDids.size) return;
+  const batch = [...pendingDids].slice(0,25);
+  batch.forEach(d=>{ pendingDids.delete(d); inflight.add(d); });
+  try{
+    const qs = batch.map(d=>"actors="+encodeURIComponent(d)).join("&");
+    const res = await fetch("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?"+qs);
+    const data = await res.json();
+    for(const p of data.profiles||[]){
+      profileCache.set(p.did, {name:p.displayName, handle:p.handle, avatar:p.avatar, bio:p.description});
+      if(hasAdultLabel(p.labels)) nsfwDids.add(p.did);
+    }
+  }catch(e){}
+  batch.forEach(d=>{ inflight.delete(d); if(!profileCache.has(d)) profileCache.set(d,{handle:null}); });
+  while(profileCache.size>5000) profileCache.delete(profileCache.keys().next().value);
+  for(const d of batch){
+    document.querySelectorAll(`.card[data-author="${CSS.escape(d)}"]`).forEach(card=>{
+      if(card.querySelector(".name").textContent==="読み込み中…") fillAuthor(card, d);
+    });
+  }
+}, 400);
+
+/* ───────── 傾向グラフ ─────────
+   受信した投稿を（選択中の傾向に関係なく）全ジャンルで判定し、5秒単位で数える。
+   表示時に範囲に応じてまとめ直し、1分あたりの件数に換算して折れ線にする。 */
+const BUCKET_MS = 5000;
+const trend = { buckets:new Map(), firstAt:0, slots:new Map(), hoverIdx:null, last:null };
+const SERIES_MAX = 6;
+// 緑一色なので系列は「明るさ＋線種」で区別（右端の直接ラベルも併用）
+const SERIES_STYLE = {
+  1:{c:"#9dff7f", dash:""},        2:{c:"#6ccf55", dash:"8 5"},
+  3:{c:"#6ccf55", dash:"2 4"},     4:{c:"#4fa83f", dash:"12 4 2 4"},
+  5:{c:"#4fa83f", dash:"4 3"},     6:{c:"#3a8a2e", dash:"16 6"},
+};
+const swatch = slot => { const st = SERIES_STYLE[slot];
+  return `<svg class="sw" width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="${st.c}" stroke-width="2" stroke-dasharray="${st.dash}"/></svg>`; };
+function trendCount(gs){
+  const now = Date.now();
+  const b = Math.floor(now/BUCKET_MS)*BUCKET_MS;
+  if(!trend.firstAt) trend.firstAt = now; // 途中から数え始めた最初の区間はグラフに使わない
+  let row = trend.buckets.get(b);
+  if(!row){
+    row = new Array(GENRES.length).fill(0);
+    trend.buckets.set(b, row);
+    const cut = b - 31*60*1000;
+    for(const k of trend.buckets.keys()){ if(k < cut) trend.buckets.delete(k); else break; }
+  }
+  for(const i of gs) row[i]++;
+}
+function trendSeries(){
+  const rangeMin = parseInt($("trendRange").value,10);
+  const stepMs = rangeMin*1000;                 // 60点になるように: 5分→5秒, 15分→15秒, 30分→30秒
+  const nowStep = Math.floor(Date.now()/stepMs)*stepMs; // 集計途中の区間は含めない
+  let from = nowStep - 60*stepMs;
+  if(trend.firstAt) from = Math.max(from, Math.ceil(trend.firstAt/stepMs)*stepMs);
+  const times = [];
+  for(let t=from; t<nowStep; t+=stepMs) times.push(t);
+  const vals = GENRES.map(()=>new Array(times.length).fill(0));
+  const perMin = 60000/stepMs;
+  for(const [b,row] of trend.buckets){
+    if(b < from || b >= nowStep) continue;
+    const idx = Math.floor((b-from)/stepMs);
+    for(let g=0; g<row.length; g++) vals[g][idx] += row[g];
+  }
+  const totals = vals.map(v=>v.reduce((a,c)=>a+c,0));
+  for(const v of vals) for(let i=0;i<v.length;i++) v[i] *= perMin;
+  return {times, vals, totals, stepMs, rangeMin};
+}
+function assignSlots(top){
+  // 線種はランキング順ではなくジャンルに付ける：グラフに残っている間は同じ線種のまま
+  for(const id of [...trend.slots.keys()]) if(!top.includes(id)) trend.slots.delete(id);
+  const used = new Set(trend.slots.values());
+  for(const id of top){
+    if(trend.slots.has(id)) continue;
+    for(let s=1; s<=SERIES_MAX; s++) if(!used.has(s)){ trend.slots.set(id,s); used.add(s); break; }
+  }
+}
+const hhmm = t => new Date(t).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
+const hhmmss = t => new Date(t).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const fmtRate = v => v>=10 ? Math.round(v).toLocaleString() : v.toFixed(1);
+function niceMax(v){
+  if(v<=0) return 4;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), n = v/p;
+  return (n<=1?1:n<=2?2:n<=5?5:10)*p;
+}
+function drawTrend(){
+  if(!$("trend").classList.contains("open")) return;
+  const d = trendSeries();
+  const order = GENRES.map((g,i)=>i).sort((a,b)=>d.totals[b]-d.totals[a]);
+  const top = order.filter(i=>d.totals[i]>0).slice(0,SERIES_MAX).map(i=>GENRES[i].id);
+  assignSlots(top);
+  trend.last = {...d, top};
+
+  // ランキング（表）
+  const span = Math.max(1, d.times.length*d.stepMs/60000);
+  $("rank").innerHTML = order.map((i,n)=>{
+    const g = GENRES[i], slot = trend.slots.get(g.id);
+    return `<li class="${n===0&&d.totals[i]>0?"lead":""}"><span class="no">${n+1}</span>
+      ${slot?swatch(slot):'<span class="sw" style="width:22px"></span>'}
+      <span class="gname">${g.name}</span>
+      <span class="v" title="平均 ${fmtRate(d.totals[i]/span)} 件/分">${d.totals[i].toLocaleString()}<small>件</small></span></li>`;
+  }).join("");
+
+  const svg = $("chart");
+  const W = svg.clientWidth || 600, H = 230;
+  const M = {l:44, r:130, t:28, b:22};
+  const iw = W-M.l-M.r, ih = H-M.t-M.b;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  $("chartEmpty").style.display = d.times.length>=2 && top.length ? "none" : "flex";
+  $("chartEmpty").textContent = state.running ? "集計中…（数秒お待ちください）" : "「開始」で集計が始まります";
+  if(d.times.length<2 || !top.length){ svg.innerHTML=""; $("tip").style.display="none"; return; }
+
+  const n = d.times.length;
+  const ymax = niceMax(Math.max(...top.map(id=>Math.max(...d.vals[GENRES.findIndex(g=>g.id===id)]))));
+  const x = i => M.l + (n===1?0:i*iw/(n-1));
+  const y = v => M.t + ih - v/ymax*ih;
+  let s = "";
+  for(let k=0;k<=4;k++){
+    const v = ymax*k/4, yy = y(v);
+    s += `<line class="gl" x1="${M.l}" x2="${M.l+iw}" y1="${yy}" y2="${yy}"/>`;
+    s += `<text class="ax" x="${M.l-6}" y="${yy+5}" text-anchor="end">${fmtRate(v)}</text>`;
+  }
+  const spanMs = n*d.stepMs;
+  const ticks = Math.max(2, Math.min(5, n, Math.floor(iw/95)+1));
+  for(let k=0;k<ticks;k++){
+    const i = Math.round(k*(n-1)/(ticks-1));
+    s += `<text class="ax" x="${x(i)}" y="${H-4}" text-anchor="${k===0?"start":k===ticks-1?"end":"middle"}">${(spanMs<=10*60000?hhmmss:hhmm)(d.times[i]+d.stepMs)}</text>`;
+  }
+  s += `<text class="ax" x="${M.l-6}" y="12" text-anchor="end">件/分</text>`;
+
+  const labels = [];
+  for(const id of [...top].reverse()){
+    const gi = GENRES.findIndex(g=>g.id===id), st = SERIES_STYLE[trend.slots.get(id)], v = d.vals[gi];
+    const pts = v.map((val,i)=>`${x(i).toFixed(1)},${y(val).toFixed(1)}`).join(" ");
+    s += `<polyline class="ln" points="${pts}" stroke="${st.c}" stroke-dasharray="${st.dash}"/>`;
+    s += `<circle class="end" cx="${x(n-1)}" cy="${y(v[n-1])}" r="4" fill="${st.c}"/>`;
+    labels.push({y:y(v[n-1]), text:GENRES[gi].name, slot:trend.slots.get(id)});
+  }
+  // 右端の直接ラベル（重ならないようにずらす）
+  labels.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labels.length;i++) if(labels[i].y-labels[i-1].y<16) labels[i].y = labels[i-1].y+16;
+  const over = labels.length ? labels[labels.length-1].y - (M.t+ih) : 0;
+  if(over>0) labels.forEach(l=>l.y-=over);
+  for(const l of labels){
+    const st = SERIES_STYLE[l.slot];
+    s += `<line x1="${M.l+iw+6}" x2="${M.l+iw+22}" y1="${l.y}" y2="${l.y}" stroke="${st.c}" stroke-width="2" stroke-dasharray="${st.dash}"/>`;
+    s += `<text class="dl" x="${M.l+iw+26}" y="${l.y+5}">${esc(l.text)}</text>`;
+  }
+  if(trend.hoverIdx!=null && trend.hoverIdx<n){
+    const i = trend.hoverIdx;
+    s += `<line class="xh" x1="${x(i)}" x2="${x(i)}" y1="${M.t}" y2="${M.t+ih}"/>`;
+    for(const id of top){
+      const gi = GENRES.findIndex(g=>g.id===id);
+      s += `<circle class="end" cx="${x(i)}" cy="${y(d.vals[gi][i])}" r="4" fill="${SERIES_STYLE[trend.slots.get(id)].c}"/>`;
+    }
+  }
+  svg.innerHTML = s;
+  trend.geom = {M, iw, n, W};
+  updateTip();
+}
+function updateTip(){
+  const tip = $("tip"), d = trend.last, i = trend.hoverIdx;
+  if(i==null || !d || i>=d.times.length || !trend.geom){ tip.style.display="none"; return; }
+  const rows = d.top.map(id=>{ const gi=GENRES.findIndex(g=>g.id===id); return {g:GENRES[gi], v:d.vals[gi][i], slot:trend.slots.get(id)}; })
+    .sort((a,b)=>b.v-a.v);
+  tip.innerHTML = `<div class="t">${hhmmss(d.times[i])} - ${hhmmss(d.times[i]+d.stepMs)}</div>` +
+    rows.map(r=>`<div class="r">${swatch(r.slot)}${r.g.name}<b>${fmtRate(r.v)} 件/分</b></div>`).join("");
+  // マウス位置の近くに出し、画面からはみ出さないように収める
+  const pt = trend.pointer; if(!pt){ tip.style.display="none"; return; }
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = pt.x + 16; if(left + tw > innerWidth - 8) left = pt.x - 16 - tw;
+  let top = pt.y + 16;  if(top + th > innerHeight - 8) top = pt.y - 16 - th;
+  tip.style.left = Math.max(8, left) + "px";
+  tip.style.top = Math.max(8, top) + "px";
+}
+$("chart").addEventListener("pointermove", e=>{
+  if(!trend.geom) return;
+  const r = $("chart").getBoundingClientRect();
+  const {M, iw, n, W} = trend.geom;
+  trend.pointer = {x:e.clientX, y:e.clientY};
+  const px = (e.clientX - r.left) * (W / r.width);
+  const i = Math.round((px - M.l) / iw * (n-1));
+  if(!Number.isFinite(i) || iw<=0) return;
+  const ni = Math.max(0, Math.min(n-1, i));
+  if(ni!==trend.hoverIdx){ trend.hoverIdx = ni; drawTrend(); } else updateTip();
+});
+$("chart").addEventListener("pointerleave", ()=>{ trend.hoverIdx=null; trend.pointer=null; drawTrend(); });
+$("trendRange").addEventListener("change", ()=>{ trend.hoverIdx=null; drawTrend(); saveSettings(); });
+window.addEventListener("resize", drawTrend);
+setInterval(drawTrend, 1000);
+
+/* ───────── 予想ゲーム ───────── */
+const GAME_KEY = "nozokimi-game-v1";
+const START_COINS = 10;
+const game = { coins:START_COINS, round:null };
+function loadGame(){
+  try{
+    const s = JSON.parse(localStorage.getItem(GAME_KEY)||"null");
+    if(s){ game.coins = Number.isFinite(s.coins) ? s.coins : START_COINS; game.round = s.round || null; }
+  }catch(e){}
+}
+function saveGame(){ try{ localStorage.setItem(GAME_KEY, JSON.stringify({coins:game.coins, round:game.round})); }catch(e){} }
+function renderCoins(){ $("coinbox").innerHTML = sprite("coin",1.5) + digitSprites(game.coins, 1.5); }
+
+function fillPickSelects(){
+  for(const id of ["p1","p2","p3"]){
+    const sel = $(id), cur = sel.value;
+    sel.innerHTML = `<option value="">-- 選択 --</option>` + GENRES.map(g=>`<option value="${g.id}">${g.name}</option>`).join("");
+    sel.value = cur;
+  }
+}
+function gMsg(t){ $("gMsg").textContent = t; }
+const intVal = id => { const v = $(id).value.trim(); return v==="" ? 0 : Math.floor(Number(v)); };
+
+async function placeBet(){
+  if(game.round) return;
+  if(game.coins<=0){ showGameOver(); return; }
+  const betG = intVal("betGenre"), betC = intVal("betCount");
+  if(!(betG>0) && !(betC>0)){
+    gMsg("掛金を入力してください（Plz bet the coin）");
+    playSE("plzbet"); return;
+  }
+  if(betG<0 || betC<0 || !Number.isFinite(betG) || !Number.isFinite(betC)){ gMsg("掛金は 0 以上の整数で入力してください"); return; }
+  if(betG + betC > game.coins){ gMsg(`コインが足りません（所持 ${game.coins} ／ 掛金合計 ${betG+betC}）`); return; }
+  const picks = [$("p1").value, $("p2").value, $("p3").value];
+  if(betG>0){
+    if(picks.some(p=>!p)){ gMsg("ジャンル予想の 1位・2位・3位 をすべて選んでください"); return; }
+    if(new Set(picks).size!==3){ gMsg("1位・2位・3位 には別々のジャンルを選んでください"); return; }
+  }
+  const cpRaw = $("countPick").value.trim();
+  if(betC>0 && (cpRaw==="" || !(Number(cpRaw)>=0))){ gMsg("投稿数の予想を入力してください"); return; }
+
+  const mins = parseInt($("roundLen").value,10);
+  const now = Date.now();
+  game.coins -= betG + betC;
+  game.round = {
+    start:now, end:now + mins*60000, mins, lang:$("langSel").value,
+    picks: betG>0 ? picks : null, betG,
+    countPick: betC>0 ? Math.round(Number(cpRaw)) : null, betC,
+    counts:new Array(GENRES.length).fill(0), total:0,
+  };
+  saveGame(); renderCoins(); gMsg("");
+  renderGame();
+  if($("bgmOn").checked) ensureAudioGraph();
+  if(!state.running) start();
+  // GAME START 演出
+  $("ovStartSpr").innerHTML = sprite("gamestart", 3);
+  $("ovStart").classList.add("show");
+  playSE("gamestart").then(startBgm);
+  setTimeout(()=>$("ovStart").classList.remove("show"), 2000);
+}
+function roundCount(gs){
+  const r = game.round; if(!r || Date.now() >= r.end) return;
+  for(const i of gs) r.counts[i]++;
+  r.total++;
+}
+function standings(r){
+  return GENRES.map((g,i)=>({g, i, n:r.counts[i]})).sort((a,b)=>b.n-a.n || a.i-b.i);
+}
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms/1000)); return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
+
+function renderGame(){
+  $("gRoundLen").textContent = game.round ? game.round.mins : $("roundLen").value;
+  $("gLangNow").textContent = langSelLabel($("langSel").value);
+  $("roundLen").disabled = !!game.round;
+  $("gIdle").style.display = game.round ? "none" : "";
+  $("gActive").style.display = game.round ? "" : "none";
+  if(!game.round) return;
+  const r = game.round;
+  $("gTimer").textContent = mmss(r.end - Date.now());
+  const mine = [];
+  if(r.picks) mine.push(`<dt>ジャンル予想</dt><dd>1位 ${GENRE_BY_ID[r.picks[0]].name} ／ 2位 ${GENRE_BY_ID[r.picks[1]].name} ／ 3位 ${GENRE_BY_ID[r.picks[2]].name}（掛金 ${r.betG}）</dd>`);
+  if(r.countPick!=null) mine.push(`<dt>投稿数予想</dt><dd>1位ジャンル ${r.countPick} 件/分（掛金 ${r.betC}）</dd>`);
+  mine.push(`<dt>集計の言語</dt><dd>${esc(langSelLabel(r.lang))}</dd>`);
+  $("gMine").innerHTML = mine.join("");
+  const st = standings(r);
+  const elapsedMin = Math.max(1/60, (Math.min(Date.now(), r.end) - r.start)/60000);
+  $("gLive").innerHTML = st.slice(0,3).map((x,k)=>{
+    const mark = r.picks ? (r.picks[k]===x.g.id ? " [予想どおり]" : "") : "";
+    return `<li><span>${k+1}位</span><span>${x.g.name}${mark}</span><span class="v">${x.n.toLocaleString()} 件</span></li>`;
+  }).join("");
+  $("gLiveInfo").innerHTML = `<dt>1位の平均</dt><dd>${(st[0].n/elapsedMin).toFixed(1)} 件/分</dd>
+    <dt>集計した投稿</dt><dd>${r.total.toLocaleString()} 件</dd>
+    ${state.running?"":"<dt>注意</dt><dd>タイムラインが停止中のため数えていません</dd>"}`;
+}
+setInterval(()=>{
+  if(game.round && Date.now() >= game.round.end) finishRound();
+  else renderGame();
+}, 1000);
+setInterval(()=>{ if(game.round) saveGame(); }, 5000);
+window.addEventListener("beforeunload", saveGame);
+
+const TIER_RANK = {nice:1, great:2, godlike:3};
+async function finishRound(){
+  const r = game.round; if(!r) return;
+  game.round = null;
+  stopBgm();
+  const st = standings(r);
+  const actual = st.slice(0,3).map(x=>x.g.id);
+  const actualRate = Math.round(st[0].n / r.mins);
+  let payout = 0, best = null;
+  const rows = [];
+  if(r.picks){
+    const hits = r.picks.filter((p,k)=>p===actual[k]).length;
+    const mult = {3:5, 2:3, 1:2}[hits] || 0;
+    const tier = {3:"godlike", 2:"great", 1:"nice"}[hits] || null;
+    const win = r.betG * mult; payout += win;
+    if(tier && (!best || TIER_RANK[tier]>TIER_RANK[best])) best = tier;
+    rows.push(`<tr><th>ジャンル予想</th><td>${hits} つ的中${hits===3?"（ピタリ賞）":""}</td><td>${mult?mult+"倍":"はずれ"}</td><td>${mult?"+"+win:"-"+r.betG}</td></tr>`);
+  }
+  if(r.countPick!=null){
+    const diff = Math.abs(r.countPick - actualRate);
+    const mult = diff===0 ? 10 : diff<=2 ? 5 : diff<=5 ? 3 : 0;
+    const tier = diff===0 ? "godlike" : diff<=2 ? "great" : diff<=5 ? "nice" : null;
+    const win = r.betC * mult; payout += win;
+    if(tier && (!best || TIER_RANK[tier]>TIER_RANK[best])) best = tier;
+    rows.push(`<tr><th>投稿数予想</th><td>予想 ${r.countPick} ／ 実際 ${actualRate}（誤差 ${diff}）</td><td>${mult?mult+"倍":"はずれ"}</td><td>${mult?"+"+win:"-"+r.betC}</td></tr>`);
+  }
+  game.coins += payout;
+  saveGame(); renderCoins(); renderGame();
+
+  const pickCell = (k) => r.picks ? `<td class="${r.picks[k]===actual[k]?"ok":"ng"}">${GENRE_BY_ID[r.picks[k]].name}</td>` : "<td>-</td>";
+  $("ovResultSpr").innerHTML = best ? `<div class="flash">${sprite(best, 4)}</div>` : `<div style="font-size:42px">はずれ…</div>`;
+  $("ovResultBody").innerHTML = `
+    <table class="result-table">
+      <tr><th></th><th>実際の結果</th><th>あなたの予想</th><th>投稿数</th></tr>
+      ${[0,1,2].map(k=>`<tr><th>${k+1}位</th><td>${st[k].g.name}</td>${pickCell(k)}<td>${st[k].n.toLocaleString()}</td></tr>`).join("")}
+    </table>
+    <p class="sub" style="color:var(--sub)">1位ジャンルの平均：${actualRate} 件/分 ／ 集計した投稿 ${r.total.toLocaleString()} 件（${r.mins}分間）</p>
+    <table class="result-table">${rows.join("")}</table>
+    <p style="display:flex;align-items:center;justify-content:center;gap:10px">獲得 ${digitSprites(payout,2)} ／ 現在 ${sprite("coin",2)}${digitSprites(game.coins,2)}</p>`;
+  $("ovResult").classList.add("show");
+  if(best){ await playSE("levelup"); await playSE(best); }
+  else { await playSE("miss"); }
+}
+function showGameOver(){
+  $("ovOverSpr").innerHTML = `<div class="flash">${sprite("gameover", 4)}</div>`;
+  $("ovOver").classList.add("show");
+  playSE("gameover");
+}
+$("ovResultOk").onclick = ()=>{
+  $("ovResult").classList.remove("show");
+  if(game.coins<=0) showGameOver();
+};
+$("retryBtn").onclick = ()=>{
+  game.coins = START_COINS; game.round = null; saveGame(); renderCoins(); renderGame();
+  $("ovOver").classList.remove("show");
+};
+$("betBtn").onclick = placeBet;
+$("abortBtn").onclick = ()=>{
+  const r = game.round; if(!r) return;
+  if(!confirm("ラウンドを中止して掛金を返却しますか？")) return;
+  game.coins += r.betG + r.betC; game.round = null; stopBgm();
+  saveGame(); renderCoins(); renderGame();
+};
+$("roundLen").addEventListener("change", ()=>{ saveSettings(); renderGame(); });
+$("gameBtn").onclick = ()=>{ $("game").classList.toggle("open"); syncPanelBtns(); saveSettings(); };
+$("trendBtn").onclick = ()=>{ $("trend").classList.toggle("open"); syncPanelBtns(); saveSettings(); drawTrend(); };
+function syncPanelBtns(){
+  $("gameBtn").classList.toggle("on", $("game").classList.contains("open"));
+  $("trendBtn").classList.toggle("on", $("trend").classList.contains("open"));
+}
+
+/* ───────── 開始・停止 ───────── */
+function start(){
+  readFilters();
+  state.running = true;
+  $("playBtn").textContent = "停止";
+  bskyStart();
+}
+function stop(){
+  if(game.round){ alert("ラウンド中はタイムラインを停止できません（止めると投稿を数えられないため）。\nやめる場合は「ラウンド中止」を押してください。"); return; }
+  state.running = false;
+  bskyStop();
+  $("playBtn").textContent = "開始";
+  setStatus("","停止中");
+}
+function setStatus(kind, text){ $("dot").className = "dot "+kind; $("statusText").textContent = text; }
+
+/* ───────── UI 初期化 ───────── */
+function renderGenres(){
+  const box = $("genres"); box.innerHTML="";
+  for(const g of GENRES){
+    const el = document.createElement("span");
+    el.className = "chip"+(state.genres.has(g.id)?" on":"");
+    el.textContent = g.name;
+    el.title = g.kw.join(", ");
+    el.onclick = ()=>{
+      state.genres.has(g.id) ? state.genres.delete(g.id) : state.genres.add(g.id);
+      el.classList.toggle("on"); saveSettings();
+    };
+    box.appendChild(el);
+  }
+}
+function renderTrHint(){
+  $("trHint").textContent = ("Translator" in self)
+    ? "ブラウザ内蔵の翻訳機能（端末内で処理）を優先し、使えない言語は Google 翻訳で訳します。"
+    : "Google 翻訳で訳します（投稿の本文が Google に送られます）。";
+}
+
+$("playBtn").onclick = ()=> state.running ? stop() : start();
+$("clearBtn").onclick = ()=>{
+  state.queue.length=0; $("feed").innerHTML=""; clearNiko();
+  state.scanned=0; state.matched=0; state.hitTimes=[]; state.translated=0;
+  trend.buckets.clear(); trend.firstAt=0; trend.slots.clear(); trend.hoverIdx=null; drawTrend();
+};
+for(const id of ["kw","ng"]) $(id).addEventListener("input", ()=>{ readFilters(); saveSettings(); });
+for(const id of ["autoTr","noReply","mediaOnly"]) $(id).addEventListener("change", saveSettings);
+$("langSel").addEventListener("change", ()=>{ saveSettings(); renderGame(); });
+for(const id of ["speed","keep"]) $(id).addEventListener("input", ()=>{ $("speedVal").textContent=$("speed").value; $("keepVal").textContent=$("keep").value; saveSettings(); });
+$("feedwrap").addEventListener("mouseenter", ()=>{ state.hover=true; $("niko").getAnimations({subtree:true}).forEach(a=>a.pause()); });
+$("feedwrap").addEventListener("mouseleave", ()=>{ state.hover=false; $("niko").getAnimations({subtree:true}).forEach(a=>a.play()); });
+$("viewMode").addEventListener("change", ()=>{ saveSettings(); applyViewMode(); });
+$("hideNsfw").addEventListener("change", ()=>{
+  saveSettings();
+  if($("hideNsfw").checked) document.querySelectorAll(".card").forEach(c=>{ if(nsfwDids.has(c.dataset.author)) c.remove(); });
+});
+$("bgmOn").addEventListener("change", ()=>{ saveSettings(); if($("bgmOn").checked) startBgm(); else { bgm.pause(); drawWave(); } });
+$("bgmVol").addEventListener("input", ()=>{ applyBgmVolume(); saveSettings(); });
+$("seOn").addEventListener("change", saveSettings);
+$("drawerBtn").onclick = ()=> $("side").classList.toggle("open");
+
+setInterval(()=>{
+  const cut = Date.now()-60000;
+  while(state.hitTimes.length && state.hitTimes[0]<cut) state.hitTimes.shift();
+  $("stScanned").textContent = state.scanned.toLocaleString();
+  $("stMatched").textContent = state.matched.toLocaleString();
+  $("stRate").textContent = state.hitTimes.length;
+  $("stQueue").textContent = state.queue.length;
+  $("stTr").textContent = state.translated.toLocaleString();
+  document.querySelectorAll(".time[data-t]").forEach(el=>el.textContent=timeAgo(new Date(+el.dataset.t)));
+}, 1000);
+
+loadSettings(); loadGame();
+renderGenres(); renderTrHint(); readFilters(); fillPickSelects(); syncPanelBtns();
+renderCoins(); renderGame(); applyViewMode(); applyBgmVolume(); drawWave();
+$("speedVal").textContent=$("speed").value; $("keepVal").textContent=$("keep").value;
+requestAnimationFrame(tick);
+// ページを開き直した時にラウンドが続いていれば、集計を再開する
+if(game.round){
+  if(Date.now() >= game.round.end) finishRound();
+  else { start(); startBgm(); }
+}
+if(game.coins<=0 && !game.round) showGameOver();
+</script>
+</body>
+</html>
