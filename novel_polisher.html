@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+<title>推敲ノート</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: 1カラム。段落ごとに「原文（薄い）→ 書き直し欄」を縦に並べる。上部に進捗つき固定ヘッダー */
+:root{
+  --bg:#f4f5f7; --surface:#ffffff; --fg:#1c2230; --muted:#6b7385; --ghost:#a7aebb;
+  --line:#dde1e8; --accent:#2c4c8f; --accent-soft:#e6ecf8; --ok:#2f7d4f; --ok-soft:#e3f2e8; --warn:#a24b1e;
+  --orig-bg:#eef0f4;
+  --serif:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Noto Serif CJK JP",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","Noto Sans JP","Noto Sans CJK JP",sans-serif;
+  --fs:17px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171d; --surface:#1c2028; --fg:#e7e9ee; --muted:#9aa2b2; --ghost:#5d6574;
+  --line:#2c323d; --accent:#8fb0ee; --accent-soft:#25304a; --ok:#6cc68f; --ok-soft:#1e3328; --warn:#e59a6e;
+  --orig-bg:#181c23; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171d; --surface:#1c2028; --fg:#e7e9ee; --muted:#9aa2b2; --ghost:#5d6574;
+  --line:#2c323d; --accent:#8fb0ee; --accent-soft:#25304a; --ok:#6cc68f; --ok-soft:#1e3328; --warn:#e59a6e;
+  --orig-bg:#181c23; color-scheme:dark}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);font-size:15px;line-height:1.6;margin:0;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:8px;padding-block:8px}
+.htitle{flex:1;min-width:0;display:flex;flex-direction:column;background:none;border:0;padding:0;text-align:left}
+.htitle b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htitle small{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.typing .tools{display:none}
+.hrow .btn{padding:6px 10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;min-height:36px;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn[disabled]{opacity:.45}
+.bar{height:3px;background:var(--line)}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+.tools{display:flex;gap:8px;align-items:center;padding-block:0 8px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:5px 12px;min-height:34px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 12px;min-height:34px;color:var(--muted)}
+.chip[aria-pressed="true"]{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+.spacer{flex:1}
+.saved{font-size:12px;color:var(--muted);min-width:4em;text-align:right}
+.saved.err{color:var(--warn)}
+
+/* notice */
+.notice{margin-block:12px 0;padding:10px 12px;border-radius:8px;background:var(--accent-soft);color:var(--fg);font-size:13px;display:flex;gap:8px;align-items:flex-start}
+.notice p{margin:0;flex:1}
+.notice.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+
+/* paragraphs */
+#list{display:flex;flex-direction:column;gap:14px;padding-block:14px 40vh}
+.p{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;scroll-margin-top:120px}
+.p.done{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.ph{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:6px}
+.ph .num{font-weight:600;color:var(--fg);min-width:2.2em}
+.ph .cnt{flex:1;min-width:0}
+.ph .cnt .over{color:var(--warn)}
+.mini{border:1px solid var(--line);background:transparent;border-radius:6px;padding:2px 10px;min-height:30px;font-size:12px;color:var(--muted)}
+.mini.on{border-color:var(--ok);background:var(--ok-soft);color:var(--ok);font-weight:600}
+.mini.confirm{border-color:var(--warn);color:var(--warn)}
+.text{font-family:var(--serif);font-size:var(--fs);line-height:1.85;letter-spacing:.02em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+body.gothic .text{font-family:var(--sans)}
+.orig{color:var(--muted);background:var(--orig-bg);border-radius:6px;padding:8px 10px;margin:0 0 8px;-webkit-user-select:text;user-select:text}
+.p.done .orig{opacity:.7}
+textarea.rw{display:block;width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:8px 10px;resize:none;overflow:hidden;min-height:3.2em;margin:0}
+textarea.rw:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea.rw::placeholder{color:var(--ghost)}
+.empty{color:var(--muted);text-align:center;padding:40px 0}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,14,22,.45);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--surface);border-radius:14px 14px 0 0;max-height:85vh;overflow:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.18)}
+.sheet h2{font-size:16px;margin:0}
+.shead{display:flex;align-items:center;gap:8px;padding-block:14px 6px}
+.shead h2{flex:1}
+.group{border-top:1px solid var(--line);padding-block:12px;display:flex;flex-direction:column;gap:10px}
+.group h3{font-size:12px;color:var(--muted);margin:0;letter-spacing:.06em;font-weight:600}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row label{display:flex;gap:6px;align-items:center}
+.hint{font-size:12px;color:var(--muted);margin:0}
+textarea.box{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px;min-height:8em;font-size:13px}
+input.field{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:8px 10px;font-size:16px}
+
+/* library & setup */
+main.page{padding-block:16px 60px;display:flex;flex-direction:column;gap:16px}
+main.page h1{font-size:20px;margin:0;text-wrap:balance}
+.works{display:flex;flex-direction:column;gap:10px}
+.work{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.work .info{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:4px}
+.work .info b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.work .info small{color:var(--muted);font-variant-numeric:tabular-nums}
+.minibar{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.minibar i{display:block;height:100%;background:var(--ok)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.card label.t{font-size:13px;font-weight:600}
+textarea.src{width:100%;box-sizing:border-box;min-height:40vh;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:10px;font-family:var(--serif);font-size:16px;line-height:1.7}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;z-index:60;max-width:calc(100% - 40px)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+var KEY='suikou-note.v1';
+var state={works:[],current:null,settings:{fs:17,hideDone:false,gothic:false,fill:true}};
+var storageOK=true, saveTimer=null, lastSaveMsg='';
+
+/* ---------- storage ---------- */
+function load(){
+  try{
+    var raw=localStorage.getItem(KEY);
+    if(raw){var d=JSON.parse(raw); if(d&&Array.isArray(d.works)){state.works=d.works;state.current=d.current||null;
+      for(var k in d.settings) state.settings[k]=d.settings[k];}}
+  }catch(e){storageOK=false}
+}
+function saveNow(){
+  clearTimeout(saveTimer);saveTimer=null;
+  try{localStorage.setItem(KEY,JSON.stringify(state));storageOK=true;setSaved('保存済み');}
+  catch(e){storageOK=false;setSaved('保存できません',true);}
+}
+function save(){var w=cur(); if(w) w.updated=Date.now(); setSaved('…'); clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,500);}
+function setSaved(t,err){var el=document.getElementById('saved'); if(el){el.textContent=t;el.className='saved'+(err?' err':'');}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&saveTimer)saveNow();});
+window.addEventListener('pagehide',function(){if(saveTimer)saveNow();});
+
+/* ---------- helpers ---------- */
+function $(s,r){return (r||document).querySelector(s)}
+function h(tag,attrs,kids){var e=document.createElement(tag);
+  if(attrs)for(var k in attrs){var v=attrs[k]; if(v==null||v===false)continue;
+    if(k==='class')e.className=v; else if(k==='text')e.textContent=v; else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),v);
+    else e.setAttribute(k,v===true?'':v);}
+  (kids||[]).forEach(function(c){if(c!=null)e.appendChild(typeof c==='string'?document.createTextNode(c):c)});
+  return e;}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function cur(){for(var i=0;i<state.works.length;i++)if(state.works[i].id===state.current)return state.works[i];return null}
+function len(s){return Array.from((s||'').replace(/\s/g,'')).length}
+function toast(t){var el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},1800)}
+function copyText(t,okMsg){
+  function fallback(){var ta=h('textarea',{class:'box',readonly:true});ta.value=t;document.body.appendChild(ta);ta.select();
+    var ok=false;try{ok=document.execCommand('copy')}catch(e){} ta.remove(); toast(ok?okMsg:'コピーできませんでした。バックアップ欄から手動でコピーしてください');}
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast(okMsg)},fallback);} else fallback(); }catch(e){fallback()}
+}
+function split(text,mode){
+  text=(text||'').replace(/\r\n?/g,'\n').replace(/ /g,' ');
+  var parts = mode==='blank' ? text.split(/\n[ \t　]*\n+/) : text.split('\n');
+  return parts.map(function(s){return mode==='blank'?s.replace(/^\n+|\n+$/g,''):s.replace(/[ \t]+$/,'')})
+    .filter(function(s){return s.replace(/[\s　]/g,'').length>0});
+}
+function stats(w){var d=0,s=0,ol=0,rl=0;w.paras.forEach(function(p){if(p.d)d++;if(p.r.trim())s++;ol+=len(p.o);rl+=len(p.r)});return{done:d,started:s,total:w.paras.length,ol:ol,rl:rl}}
+function makeWork(title,text,mode){return{id:uid(),title:title||'無題',sep:mode,created:Date.now(),updated:Date.now(),
+  paras:split(text,mode).map(function(o){return{o:o,r:'',d:false}})}}
+function applySettings(){
+  document.documentElement.style.setProperty('--fs',state.settings.fs+'px');
+  document.body.classList.toggle('gothic',!!state.settings.gothic);
+}
+
+/* ---------- sample ---------- */
+var SAMPLE=[
+'　終電の一本前を逃した夜、駅のホームには雨の匂いが満ちていた。',
+'　私はベンチに腰を下ろし、濡れた傘を足元に立てかけた。電光掲示板は次の電車まで二十三分と告げている。',
+'　「待つしかないね」と隣に座った老人が言った。彼は膝の上に紙袋を抱えていて、その中からは焼き芋の甘い香りが立ちのぼっていた。',
+'　私は曖昧に笑って頷いた。知らない人と話すのは得意ではない。けれど、その夜の老人の声には、なぜか耳を傾けたくなる柔らかさがあった。',
+'　「若い頃はね、この駅で毎晩誰かを待っていたんだよ」',
+'　老人はそう言って、線路の向こうの暗がりを見つめた。'
+].join('\n');
+function ensureSample(){
+  if(state.works.length) return;
+  var w=makeWork('サンプル：雨の駅',SAMPLE,'line'); w.sample=true;
+  w.paras[0].r='　終電のひとつ前に乗りそびれた。ホームは雨の匂いでいっぱいだった。'; w.paras[0].d=true;
+  w.paras[1].r='　ベンチに座って、濡れた傘を足のあいだに立てる。掲示板の数字は、次の電車まであと二十三分。';
+  state.works.push(w); state.current=w.id;
+}
+
+/* ---------- screens ---------- */
+var app=document.getElementById('app');
+function go(screen){window.scrollTo(0,0); app.innerHTML=''; closeSheet();
+  if(screen==='editor'&&cur()) renderEditor(); else if(screen==='new') renderNew(); else renderLibrary();}
+
+/* library */
+function renderLibrary(){
+  var list=h('div',{class:'works'});
+  var sorted=state.works.slice().sort(function(a,b){return b.updated-a.updated});
+  sorted.forEach(function(w){
+    var s=stats(w), pct=s.total?Math.round(s.done/s.total*100):0;
+    var del=h('button',{class:'mini',text:'削除'});
+    del.addEventListener('click',function(){
+      if(!del.classList.contains('confirm')){del.classList.add('confirm');del.textContent='本当に削除';setTimeout(function(){del.classList.remove('confirm');del.textContent='削除'},3000);return;}
+      state.works=state.works.filter(function(x){return x!==w}); if(state.current===w.id)state.current=null; saveNow(); renderLibraryAgain();});
+    list.appendChild(h('div',{class:'work'},[
+      h('button',{class:'info',onclick:function(){state.current=w.id;saveNow();go('editor')}},[
+        h('b',{text:w.title}),
+        h('small',{text:s.done+' / '+s.total+' 段落が推敲済み（'+pct+'%）・'+new Date(w.updated).toLocaleDateString('ja-JP')}),
+        h('div',{class:'minibar'},[h('i',{style:'width:'+pct+'%'})])
+      ]),del]));
+  });
+  var page=h('main',{class:'page wrap'},[
+    h('div',{class:'row'},[h('h1',{text:'推敲ノート',style:'flex:1'}),h('button',{class:'btn pri',text:'＋ 原稿を読み込む',onclick:function(){go('new')}})]),
+    h('p',{class:'hint',text:'AIと書いた下書き（仮小説）を段落に分け、原文を見ながら一段落ずつ自分の言葉に書き直すためのノートです。書いた内容はこの端末のブラウザに自動保存されます。'}),
+    state.works.length?list:h('p',{class:'empty',text:'まだ原稿がありません。「原稿を読み込む」から始めましょう。'}),
+    backupCard()
+  ]);
+  if(!storageOK) page.insertBefore(warnBox(),page.children[1]);
+  app.appendChild(page);
+}
+function renderLibraryAgain(){app.innerHTML='';renderLibrary();}
+function warnBox(){return h('div',{class:'notice warn'},[h('p',{text:'この画面ではブラウザへの保存ができないようです（プライベートモードなど）。閉じる前に「書き出し」で内容をコピーしてください。'})])}
+
+function backupCard(){
+  var box=h('textarea',{class:'box',id:'backup-box',placeholder:'ここにバックアップの文字列を貼り付けて「復元」'});
+  return h('div',{class:'card'},[
+    h('label',{class:'t',for:'backup-box',text:'バックアップ・機種変更'}),
+    h('p',{class:'hint',text:'全作品をひとつの文字列にしてコピーできます。メモアプリなどに貼っておけば、別の端末やブラウザで「復元」できます。'}),
+    box,
+    h('div',{class:'row'},[
+      h('button',{class:'btn',text:'全作品をコピー',onclick:function(){var t=JSON.stringify({app:'suikou-note',v:1,works:state.works});box.value=t;copyText(t,'バックアップをコピーしました')}}),
+      h('button',{class:'btn',text:'復元',onclick:function(){
+        try{var d=JSON.parse(box.value);var ws=d.works||[];var n=0;
+          ws.forEach(function(w){if(!w||!Array.isArray(w.paras))return;var ex=state.works.findIndex(function(x){return x.id===w.id});
+            if(ex>=0)state.works[ex]=w;else state.works.push(w);n++;});
+          if(!n)throw 0; saveNow(); toast(n+'作品を復元しました'); renderLibraryAgain();
+        }catch(e){toast('読み取れませんでした。コピーした文字列を全部貼り付けてください')}}})
+    ])]);
+}
+
+/* new */
+function renderNew(){
+  var mode='line';
+  var title=h('input',{class:'field',id:'new-title',placeholder:'作品名（例：雨の駅 第1章）'});
+  var src=h('textarea',{class:'src',id:'new-src',placeholder:'ここに仮小説の本文を貼り付けてください'});
+  var info=h('p',{class:'hint',text:''});
+  function upd(){var n=split(src.value,mode).length;info.textContent=n?n+' 段落に分かれます（約'+len(src.value)+'字・400字詰め約'+Math.ceil(len(src.value)/400)+'枚）':'';}
+  src.addEventListener('input',upd);
+  var seg=h('div',{class:'seg',role:'group','aria-label':'段落の区切り方'});
+  [['line','改行ごと'],['blank','空行ごと']].forEach(function(o){
+    var b=h('button',{type:'button','aria-pressed':String(o[0]===mode),text:o[1]});
+    b.addEventListener('click',function(){mode=o[0];Array.from(seg.children).forEach(function(c){c.setAttribute('aria-pressed',String(c===b))});upd();});
+    seg.appendChild(b);});
+  var file=h('input',{type:'file',accept:'.txt,text/plain',id:'new-file',style:'max-width:100%'});
+  file.addEventListener('change',function(){var f=file.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(){var buf=r.result,t;try{t=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){try{t=new TextDecoder('shift_jis').decode(buf)}catch(e2){t=new TextDecoder().decode(buf)}}
+      src.value=t.replace(/^﻿/,'');if(!title.value)title.value=f.name.replace(/\.[^.]+$/,'');upd();};
+    r.readAsArrayBuffer(f);});
+  app.appendChild(h('main',{class:'page wrap'},[
+    h('div',{class:'row'},[h('button',{class:'btn ghost',text:'‹ 戻る',onclick:function(){go(cur()?'editor':'library')}}),h('h1',{text:'原稿を読み込む',style:'flex:1'})]),
+    h('div',{class:'card'},[
+      h('label',{class:'t',for:'new-title',text:'作品名'}),title,
+      h('label',{class:'t',for:'new-src',text:'仮小説の本文'}),src,
+      h('div',{class:'row'},[h('span',{class:'hint',text:'または .txt ファイル：'}),file]),
+      h('div',{class:'row'},[h('span',{class:'hint',text:'段落の区切り：'}),seg]),
+      h('p',{class:'hint',text:'「改行ごと」は1行を1段落にします（空行は無視）。会話文が複数行にまたがる原稿は「空行ごと」が向いています。'}),
+      info,
+      h('button',{class:'btn pri',text:'推敲を始める',onclick:function(){
+        if(!split(src.value,mode).length){toast('本文を貼り付けてください');src.focus();return;}
+        var w=makeWork(title.value.trim(),src.value,mode);state.works.push(w);state.current=w.id;saveNow();go('editor');}})
+    ])]));
+}
+
+/* editor */
+var listEl=null, lastIdx=-1;
+function renderEditor(){
+  var w=cur(), S=state.settings;
+  var hdr=h('header',{},[
+    h('div',{class:'wrap'},[
+      h('div',{class:'hrow'},[
+        h('button',{class:'btn ghost',text:'‹',style:'font-size:22px;padding:0 8px',onclick:function(){saveNow();go('library')},'aria-label':'作品一覧へ'}),
+        h('button',{class:'htitle',onclick:openMenu},[h('b',{text:w.title}),h('small',{id:'prog'})]),
+        h('button',{class:'btn pri',text:'次へ',onclick:nextTodo,onmousedown:function(e){e.preventDefault()},'aria-label':'次の未推敲の段落へ'}),
+        h('button',{class:'btn',text:'メニュー',onclick:openMenu})
+      ]),
+      h('div',{class:'tools'},[
+        h('button',{class:'chip','aria-pressed':String(!!S.hideDone),text:'済を隠す',onclick:function(e){S.hideDone=!S.hideDone;e.currentTarget.setAttribute('aria-pressed',String(S.hideDone));saveNow();renderList();}}),
+        h('span',{class:'spacer'}),
+        h('span',{class:'saved',id:'saved',text:storageOK?'':'保存できません'})
+      ])
+    ]),
+    h('div',{class:'bar'},[h('i',{id:'barfill'})])
+  ]);
+  app.appendChild(hdr);
+  var main=h('main',{class:'wrap'});
+  if(w.sample) main.appendChild(h('div',{class:'notice'},[h('p',{text:'これはサンプル原稿です。左上の「‹」（作品一覧）から自分の原稿を読み込めます。'})]));
+  if(!storageOK) main.appendChild(warnBox());
+  listEl=h('div',{id:'list'}); main.appendChild(listEl);
+  app.appendChild(main);
+  renderList(); updProg();
+}
+function renderList(){
+  var w=cur(),S=state.settings; listEl.innerHTML='';
+  var shown=0;
+  w.paras.forEach(function(p,i){ if(S.hideDone&&p.d)return; shown++; listEl.appendChild(paraEl(p,i)); });
+  if(!shown) listEl.appendChild(h('p',{class:'empty',text:'すべての段落が推敲済みです。おつかれさまでした！「書き出し・設定」から完成稿をコピーできます。'}));
+  requestAnimationFrame(function(){Array.from(listEl.querySelectorAll('textarea.rw')).forEach(grow)});
+}
+function paraEl(p,i){
+  var ta=h('textarea',{class:'rw text',id:'rw-'+i,rows:'1','aria-label':'第'+(i+1)+'段落の書き直し',placeholder:'自分の言葉で書き直す…',
+    autocomplete:'off',autocorrect:'off',autocapitalize:'off',spellcheck:'false'});
+  ta.value=p.r;
+  var cnt=h('span',{class:'cnt'});
+  var done=h('button',{class:'mini'+(p.d?' on':''),text:p.d?'✓ 済':'済にする','aria-pressed':String(!!p.d)});
+  var copyB=h('button',{class:'mini',text:'原文を写す'});
+  var sec=h('section',{class:'p'+(p.d?' done':''),'data-i':i});
+  function updCnt(){var a=len(p.o),b=len(p.r);cnt.innerHTML='';cnt.appendChild(document.createTextNode('原文 '+a+'字'));
+    if(b){cnt.appendChild(document.createTextNode(' → '));var sp=h('span',{text:b+'字'});if(b>a*1.5)sp.className='over';cnt.appendChild(sp);}}
+  updCnt();
+  ta.addEventListener('input',function(){p.r=ta.value;grow(ta);updCnt();updProg();save();});
+  ta.addEventListener('focus',function(){document.body.classList.add('typing');lastIdx=i;focusScroll(sec)});
+  ta.addEventListener('blur',function(){document.body.classList.remove('typing')});
+  done.addEventListener('click',function(){p.d=!p.d;done.className='mini'+(p.d?' on':'');done.textContent=p.d?'✓ 済':'済にする';done.setAttribute('aria-pressed',String(p.d));
+    sec.classList.toggle('done',p.d);updProg();save();
+    if(p.d&&state.settings.hideDone){setTimeout(function(){sec.remove();if(!listEl.querySelector('.p'))renderList();},250);}});
+  copyB.addEventListener('click',function(){
+    if(p.r.trim()&&!copyB.classList.contains('confirm')){copyB.classList.add('confirm');copyB.textContent='書いた文を上書き？';
+      setTimeout(function(){copyB.classList.remove('confirm');copyB.textContent='原文を写す'},3000);return;}
+    copyB.classList.remove('confirm');copyB.textContent='原文を写す';
+    p.r=p.o;ta.value=p.o;grow(ta);updCnt();updProg();save();ta.focus();});
+  sec.appendChild(h('div',{class:'ph'},[h('span',{class:'num',text:'#'+(i+1)}),cnt,copyB,done]));
+  sec.appendChild(h('div',{class:'orig text',text:p.o}));
+  sec.appendChild(ta);
+  return sec;
+}
+function grow(ta){
+  ta.style.height='auto';
+  ta.style.height=(ta.scrollHeight+2)+'px';
+}
+function headerH(){var hd=$('header');return hd?hd.getBoundingClientRect().bottom:0}
+function focusScroll(sec){
+  // キーボードが出たあと、原文と書き直し欄が両方見える位置へ
+  setTimeout(function(){
+    var vv=window.visualViewport, vh=vv?vv.height:window.innerHeight;
+    var top=headerH(), r=sec.getBoundingClientRect();
+    if(r.height<=vh-top-8 && (r.top<top || r.bottom>vh)) window.scrollBy({top:r.top-top-8,behavior:'smooth'});
+    else if(r.top>vh*0.6) window.scrollBy({top:r.top-top-8,behavior:'smooth'});
+  },350);
+}
+function nextTodo(){
+  var w=cur(), from=lastIdx;
+  var idx=-1;
+  for(var k=1;k<=w.paras.length;k++){var j=(from+k)%w.paras.length;if(!w.paras[j].d){idx=j;break;}}
+  if(idx<0){toast('未推敲の段落はありません');return;}
+  var ta=document.getElementById('rw-'+idx); if(!ta)return;
+  var sec=ta.closest('.p');
+  window.scrollTo({top:window.scrollY+sec.getBoundingClientRect().top-headerH()-8});
+  try{ta.focus({preventScroll:true})}catch(e){ta.focus()}
+}
+function updProg(){
+  var w=cur();if(!w)return;var s=stats(w);var el=$('#prog');
+  if(el) el.textContent='済 '+s.done+'/'+s.total+'段落・'+s.rl+'字';
+  var b=$('#barfill'); if(b) b.style.width=(s.total?s.done/s.total*100:0)+'%';
+}
+
+/* ---------- menu sheet ---------- */
+function closeSheet(){var a=$('.scrim'),b=$('.sheet');if(a)a.remove();if(b)b.remove();}
+function exportText(w){
+  var sepr=w.sep==='blank'?'\n\n':'\n';
+  return w.paras.map(function(p){return p.r.trim()?p.r:(state.settings.fill?p.o:'')}).filter(function(t,i,arr){return state.settings.fill||t!==''}).join(sepr);
+}
+function openMenu(){
+  var w=cur(),S=state.settings; closeSheet(); saveNow();
+  var scrim=h('div',{class:'scrim',onclick:closeSheet});
+  var fsLabel=h('span',{text:S.fs+'px',style:'min-width:3em;text-align:center;font-variant-numeric:tabular-nums'});
+  function setFs(d){S.fs=Math.min(26,Math.max(13,S.fs+d));fsLabel.textContent=S.fs+'px';applySettings();saveNow();
+    Array.from(document.querySelectorAll('textarea.rw')).forEach(grow);}
+  var fill=h('input',{type:'checkbox',id:'opt-fill'}); fill.checked=!!S.fill;
+  fill.addEventListener('change',function(){S.fill=fill.checked;saveNow();});
+  var goth=h('input',{type:'checkbox',id:'opt-goth'}); goth.checked=!!S.gothic;
+  goth.addEventListener('change',function(){S.gothic=goth.checked;applySettings();saveNow();Array.from(document.querySelectorAll('textarea.rw')).forEach(grow);});
+  var titleIn=h('input',{class:'field',id:'opt-title'}); titleIn.value=w.title;
+  titleIn.addEventListener('input',function(){w.title=titleIn.value||'無題';var b=$('.htitle b');if(b)b.textContent=w.title;save();});
+  var s=stats(w);
+  var dlBtn=h('button',{class:'btn',text:'.txt で保存'});
+  dlBtn.addEventListener('click',function(){
+    try{var blob=new Blob([exportText(w)],{type:'text/plain;charset=utf-8'});var a=h('a',{href:URL.createObjectURL(blob),download:(w.title||'推敲')+'.txt'});
+      document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);
+      toast('保存できない場合は「完成稿をコピー」を使ってください');}catch(e){toast('この画面ではファイル保存できません。コピーを使ってください')}
+  });
+  var sheet=h('div',{class:'sheet',role:'dialog','aria-label':'書き出しと設定'},[h('div',{class:'wrap'},[
+    h('div',{class:'shead'},[h('h2',{text:'書き出し・設定'}),h('button',{class:'btn ghost',text:'閉じる',onclick:closeSheet})]),
+    h('div',{class:'group'},[
+      h('h3',{text:'進み具合'}),
+      h('p',{class:'hint',style:'font-variant-numeric:tabular-nums',text:'推敲済み '+s.done+' / '+s.total+' 段落、書きかけ '+(s.started)+' 段落。原文 '+s.ol+'字 → 書き直し '+s.rl+'字（400字詰め約'+Math.ceil(s.rl/400)+'枚）'})
+    ]),
+    h('div',{class:'group'},[
+      h('h3',{text:'書き出し'}),
+      h('div',{class:'row'},[
+        h('button',{class:'btn pri',text:'完成稿をコピー',onclick:function(){copyText(exportText(w),'完成稿をコピーしました')}}),
+        dlBtn]),
+      h('label',{for:'opt-fill',class:'row'},[fill,h('span',{text:'まだ書き直していない段落は原文で埋める'})]),
+      h('p',{class:'hint',text:'コピーした文章は、メモアプリや小説投稿サイトの編集画面にそのまま貼り付けられます。'})
+    ]),
+    h('div',{class:'group'},[
+      h('h3',{text:'表示'}),
+      h('div',{class:'row'},[h('span',{text:'文字の大きさ'}),h('button',{class:'btn',text:'小',onclick:function(){setFs(-1)},'aria-label':'文字を小さく'}),fsLabel,h('button',{class:'btn',text:'大',onclick:function(){setFs(1)},'aria-label':'文字を大きく'})]),
+      h('label',{for:'opt-goth',class:'row'},[goth,h('span',{text:'ゴシック体で表示する'})])
+    ]),
+    h('div',{class:'group'},[
+      h('label',{class:'t',for:'opt-title',text:'作品名',style:'font-size:12px;color:var(--muted);font-weight:600'}),titleIn
+    ])
+  ])]);
+  document.body.appendChild(scrim);document.body.appendChild(sheet);
+}
+
+/* ---------- boot ---------- */
+load(); ensureSample(); applySettings();
+if(!storageOK){} else { try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){storageOK=false} }
+go(cur()?'editor':'library');
+})();
+</script>
+
+</body>
+</html>
