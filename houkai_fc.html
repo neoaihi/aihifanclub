@@ -196,6 +196,15 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
     cache.set(key, c);
     return c;
   };
+  // ▶▼▲ はフォントに頼らず点で描く (iPhone などで豆腐・絵文字になるのを防ぐ)
+  FC.drawArrow = (ctx, dir, x, y, color) => {
+    ctx.fillStyle = FC.css(color ?? 0x30); x = Math.round(x); y = Math.round(y);
+    for (let i = 0; i < 5; i++) {
+      if (dir === 'right') ctx.fillRect(x + 3 + i, y + 2 + i, 1, 9 - i * 2);
+      else if (dir === 'down') ctx.fillRect(x + 2 + i, y + 3 + i, 9 - i * 2, 1);
+      else ctx.fillRect(x + 2 + i, y + 7 - i, 9 - i * 2, 1);
+    }
+  };
   FC.drawText = (ctx, s, x, y, color, font) => { if (s === '' || s == null) return; ctx.drawImage(FC.textCanvas(s, color ?? 0x30, font), Math.round(x), Math.round(y)); };
 
   // ファミコンRPG風のウィンドウ (角丸・白い二重枠)
@@ -455,8 +464,9 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
         if (!this.running) return;
         acc += Math.min(100, now - last); last = now;
         let n = 0;
-        while (acc >= 1000 / 60 && n < 4) { this.update(); acc -= 1000 / 60; n++; }
-        this._carry = null; // 1回の描画の間に何コマ進んでも、押したボタンは待っている処理に必ず届ける
+        // ボタンを押したコマで1回の描画を区切る。続けてコマを進めると、押したボタンが待っている処理に届かなかったり
+        // (取りこぼし)、そのコマで始まった会話やメニューが同じ押下をもう一度受け取ったり (二重押し) するため
+        while (acc >= 1000 / 60 && n < 4) { const pr = this.update(); acc -= 1000 / 60; n++; if (pr) { acc = Math.min(acc, 1000 / 60); break; } }
         this.render();
         this.raf = requestAnimationFrame(loop);
       };
@@ -626,15 +636,16 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       this.t++;
       const w = this.waiters; this.waiters = [];
       // 押した瞬間はこのコマだけ
-      // 処理が遅れて1回の描画で何コマも進むとき、前のコマで押したボタンが消えないように引き継ぐ
-      // (イベントの await は全部のコマが終わってから動くため、ここで消すと押したのに反応しないことがあった)
-      this.held = Object.assign(this._carry || {}, this.pressed); this._carry = this.held; this.pressed = {};
+      // (押したコマのあとは描画まで進めないので、await で待っている処理にも1回だけ届く)
+      const pr = Object.keys(this.pressed).length > 0;
+      this.held = this.pressed; this.pressed = {};
       w.forEach((r) => r());
       if (this.ui.shake > 0) this.ui.shake--;
       if (this.ui.flash) { this.ui.flash.n--; if (this.ui.flash.n <= 0) this.ui.flash = null; }
       if (this.ui.toast) { this.ui.toast.n--; if (this.ui.toast.n <= 0) this.ui.toast = null; }
       if (this.scene === 'map') this.updateMap();
       if (this.lateUp) { for (const k in this.lateUp) this.keys[k] = false; this.lateUp = null; }
+      return pr;
     }
     hit(k) { return !!this.held[k]; }
     updateMap() {
@@ -799,7 +810,7 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       const lines = [a.name + '  Lv ' + m.lv, 'HP ' + m.hp + '/' + this.stat(m, 'hp'), 'MP ' + m.mp + '/' + this.stat(m, 'mp')];
       ['atk', 'def', 'mat', 'mdf', 'spd', 'luk'].forEach((k) => lines.push(lab(k) + String(this.stat(m, k)).padStart(6)));
       lines.push('つぎのLvまで ' + Math.max(0, this.expFor(m.lv + 1) - m.exp));
-      this.ui.wins.__st = { x: 96, y: 64, w: 144, h: lines.length * 16 + 16, text: lines.join('\n') };
+      this.ui.wins.__st = { x: 96, y: 64, w: 144, h: lines.length * 16 + 16, text: lines.join('\n'), top: true };
       do { await this.frame(); } while (!this.hit('a') && !this.hit('b'));
       delete this.ui.wins.__st;
     }
@@ -1026,9 +1037,10 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       else if (this.scene === 'battle' && this.btl) FC.renderBattle(this, c);
       else if (this.scene === 'title') this.renderTitle(c);
       // 自由ウィンドウ
-      for (const w of Object.values(this.ui.wins)) this.drawTextWin(c, w);
+      for (const w of Object.values(this.ui.wins)) if (!w.top) this.drawTextWin(c, w);
       if (this.ui.msg) this.drawMsg(c);
       for (const s of this.ui.sel) this.drawSel(c, s);
+      for (const w of Object.values(this.ui.wins)) if (w.top) this.drawTextWin(c, w);
       if (this.ui.toast) { FC.drawWindow(c, 8, 8, 240, 32, 0x06); FC.drawText(c, this.ui.toast.text.slice(0, 32), 16, 16); }
       if (this.ui.flash) { c.globalAlpha = this.ui.flash.n / this.ui.flash.max; c.fillStyle = FC.css(this.ui.flash.color); c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
       c.restore();
@@ -1045,7 +1057,7 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       FC.drawWindow(c, b.x, b.y, b.w, b.h, this.winBg());
       let left = m.shown;
       m.lines.forEach((l, i) => { const s = l.slice(0, Math.max(0, left)); left -= l.length; FC.drawText(c, s, b.x + 8, b.y + 4 + i * 16, this.p.system.textColor ?? 0x30); });
-      if (m.done && (this.t >> 4) % 2) FC.drawText(c, '▼', b.x + b.w / 2 - 7, b.y + b.h - 13);
+      if (m.done && (this.t >> 4) % 2) FC.drawArrow(c, 'down', b.x + b.w / 2 - 7, b.y + b.h - 13, this.p.system.textColor ?? 0x30);
     }
     drawSel(c, s) {
       FC.drawWindow(c, s.x, s.y, s.w, s.h, this.winBg());
@@ -1055,10 +1067,10 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
         const i = (s.top + r) * s.cols + k; const it = s.items[i]; if (!it) continue;
         const x = s.x + 16 + k * s.colW, y = s.y + 8 + r * 16;
         FC.drawText(c, this.fmt(it.text), x, y, it.disabled ? 0x00 : tc);
-        if (i === s.idx && (s.active === false || (this.t >> 3) % 4 !== 0)) FC.drawText(c, '▶', x - 12, y, tc);
+        if (i === s.idx && (s.active === false || (this.t >> 3) % 4 !== 0)) FC.drawArrow(c, 'right', x - 12, y, tc);
       }
-      if (s.top > 0) FC.drawText(c, '▲', s.x + s.w - 16, s.y + 2);
-      if ((s.top + s.vis) * s.cols < s.items.length) FC.drawText(c, '▼', s.x + s.w - 16, s.y + s.h - 14);
+      if (s.top > 0) FC.drawArrow(c, 'up', s.x + s.w - 16, s.y + 2, tc);
+      if ((s.top + s.vis) * s.cols < s.items.length) FC.drawArrow(c, 'down', s.x + s.w - 16, s.y + s.h - 14, tc);
       if (s.info === 'gold') { const t = this.gold + ' G'; FC.drawWindow(c, s.x, s.y + s.h + 4, s.w, 32, this.winBg()); FC.drawText(c, t, s.x + s.w - 10 - FC.textW(t), s.y + s.h + 12, tc); }
     }
     renderTitle(c) {
@@ -1459,7 +1471,7 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       if (e.dead) continue;
       if (e.flash) continue;
       if (e.img) c.drawImage(e.img, e.x, e.y); else { c.fillStyle = FC.css(0x16); c.fillRect(e.x, e.y, e.w, e.h); }
-      if (B.aim === e && (game.t >> 3) % 2) FC.drawText(c, '▼', e.x + e.w / 2 - 7, e.y - 16, 0x30);
+      if (B.aim === e && (game.t >> 3) % 2) FC.drawArrow(c, 'down', e.x + e.w / 2 - 7, e.y - 16, 0x30);
     }
     // 味方の状態
     const n = game.party.length;
