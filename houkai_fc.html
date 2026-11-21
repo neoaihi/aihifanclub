@@ -456,6 +456,7 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
         acc += Math.min(100, now - last); last = now;
         let n = 0;
         while (acc >= 1000 / 60 && n < 4) { this.update(); acc -= 1000 / 60; n++; }
+        this._carry = null; // 1回の描画の間に何コマ進んでも、押したボタンは待っている処理に必ず届ける
         this.render();
         this.raf = requestAnimationFrame(loop);
       };
@@ -625,7 +626,9 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       this.t++;
       const w = this.waiters; this.waiters = [];
       // 押した瞬間はこのコマだけ
-      this.held = this.pressed; this.pressed = {};
+      // 処理が遅れて1回の描画で何コマも進むとき、前のコマで押したボタンが消えないように引き継ぐ
+      // (イベントの await は全部のコマが終わってから動くため、ここで消すと押したのに反応しないことがあった)
+      this.held = Object.assign(this._carry || {}, this.pressed); this._carry = this.held; this.pressed = {};
       w.forEach((r) => r());
       if (this.ui.shake > 0) this.ui.shake--;
       if (this.ui.flash) { this.ui.flash.n--; if (this.ui.flash.n <= 0) this.ui.flash = null; }
