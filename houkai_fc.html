@@ -4,7 +4,7 @@
 body{display:flex;flex-direction:column;align-items:center;justify-content:center}
 #screen{image-rendering:pixelated;image-rendering:crisp-edges;background:#000;display:block}
 .pad{display:none;width:100%;max-width:520px;justify-content:space-between;align-items:center;padding:8px 18px 18px;box-sizing:border-box}
-.pad button{background:#000;color:#fcfcfc;border:2px solid #fcfcfc;border-radius:10px;font:16px sans-serif;touch-action:none}
+.pad{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.pad button{background:#000;color:#fcfcfc;border:2px solid #fcfcfc;border-radius:10px;font:16px sans-serif;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}.pad button.on{background:#555}.pad-a.on{background:#f83800!important}
 .dpad{display:grid;grid-template-columns:52px 52px 52px;grid-template-rows:52px 52px 52px;gap:2px}
 .pad-u{grid-column:2;grid-row:1}.pad-l{grid-column:1;grid-row:2}.pad-r{grid-column:3;grid-row:2}.pad-d{grid-column:2;grid-row:3}
 .abtn{display:flex;gap:16px}.pad-a,.pad-b{width:64px;height:64px;border-radius:50%!important;font-size:20px!important}.pad-a{background:#a80020!important}
@@ -241,6 +241,30 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
     if (s.showChip && chip) c.drawImage(FC.chipCanvas(chip, 0, [0, 1, 2, 1][(t >> 4) % 4]), 120, s.chipY === '' ? below + (s.subtitle ? 24 : 4) : +s.chipY);
     if (s.footer) String(s.footer).split('\n').forEach((l, i) => FC.drawText(c, l, 128 - FC.textW(l) / 2, +s.footerY + i * 14, s.footerColor));
   };
+  // ---------- スマホのボタン ----------
+  // 指をすべらせて別のボタンへ移っても反応するように、パッド全体で指の位置を見て押しているボタンを決める。
+  // iOS は指を置いたボタンに指を「つかまれた」ままになる (pointer capture) ので、それを外して自分で判定する。
+  FC.bindPad = (pad, setKey) => {
+    const cur = new Map(); // 指の番号 → 押しているキー
+    const keyAt = (x, y) => { const el = document.elementFromPoint(x, y); const b = el && el.closest && el.closest('[data-k]'); return b && pad.contains(b) ? b.dataset.k : null; };
+    const count = (k) => { let n = 0; for (const v of cur.values()) if (v === k) n++; return n; };
+    const set = (id, k) => {
+      const old = cur.get(id); if (old === k) return;
+      if (k) cur.set(id, k); else cur.delete(id);
+      if (old && !count(old)) { setKey(old, false); const b = pad.querySelector(`[data-k="${old}"]`); if (b) b.classList.remove('on'); }
+      if (k) { setKey(k, true); const b = pad.querySelector(`[data-k="${k}"]`); if (b) b.classList.add('on'); }
+    };
+    pad.addEventListener('pointerdown', (e) => { e.preventDefault(); try { e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId); } catch (_) {} set(e.pointerId, keyAt(e.clientX, e.clientY)); });
+    pad.addEventListener('pointermove', (e) => { if (!cur.has(e.pointerId) && e.buttons === 0 && e.pointerType === 'mouse') return; if (e.pointerType !== 'mouse' || e.buttons) set(e.pointerId, keyAt(e.clientX, e.clientY)); });
+    const end = (e) => set(e.pointerId, null);
+    ['pointerup', 'pointercancel'].forEach((t) => window.addEventListener(t, end));
+    pad.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') end(e); });
+    // 長押しメニュー・ダブルタップ拡大・スクロールを止める
+    ['touchstart', 'touchmove', 'touchend', 'contextmenu', 'dblclick'].forEach((t) => pad.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+    // アプリ切り替えなどで指の情報が消えたときは全部はなす
+    const releaseAll = () => { for (const id of [...cur.keys()]) set(id, null); };
+    window.addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', releaseAll);
+  };
 })();
 
 ;
@@ -440,7 +464,8 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
     }
     destroy() { this.running = false; cancelAnimationFrame(this.raf); window.removeEventListener('keydown', this._kd); window.removeEventListener('keyup', this._ku); FC.stopBGM(); this.waiters = []; }
     // 画面のボタン (スマホ) から
-    setKey(k, down) { if (down) { FC.audioUnlock(); if (!this.keys[k]) this.pressed[k] = true; } this.keys[k] = down; }
+    // スマホのボタン: 一瞬だけ触ったときも1コマは押したままにする (すぐ離すと歩けないことがあるため)
+    setKey(k, down) { if (down) { FC.audioUnlock(); if (!this.keys[k]) this.pressed[k] = true; this.keys[k] = true; if (this.lateUp) delete this.lateUp[k]; return; } if (this.pressed[k]) { (this.lateUp = this.lateUp || {})[k] = true; return; } this.keys[k] = false; }
 
     resetState() {
       const p = this.p;
@@ -606,6 +631,7 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
       if (this.ui.flash) { this.ui.flash.n--; if (this.ui.flash.n <= 0) this.ui.flash = null; }
       if (this.ui.toast) { this.ui.toast.n--; if (this.ui.toast.n <= 0) this.ui.toast = null; }
       if (this.scene === 'map') this.updateMap();
+      if (this.lateUp) { for (const k in this.lateUp) this.keys[k] = false; this.lateUp = null; }
     }
     hit(k) { return !!this.held[k]; }
     updateMap() {
@@ -1605,7 +1631,8 @@ body{display:flex;flex-direction:column;align-items:center;justify-content:cente
 var g=new FC.Game(cv,P,{fontData:fonts});
 function fit(){var pad=document.querySelector('.pad');var ph=getComputedStyle(pad).display==='none'?0:pad.offsetHeight;var s=Math.min(window.innerWidth/256,(window.innerHeight-ph)/240);if(s>=2)s=Math.floor(s);cv.style.width=Math.floor(256*s)+'px';cv.style.height=Math.floor(240*s)+'px';}
 window.addEventListener('resize',fit);fit();
-document.querySelectorAll('.pad button').forEach(function(b){var k=b.dataset.k;var on=function(e){e.preventDefault();g.setKey(k,true)};var off=function(e){e.preventDefault();g.setKey(k,false)};b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);});
+FC.bindPad(document.querySelector('.pad'),function(k,d){g.setKey(k,d)});
+document.addEventListener('gesturestart',function(e){e.preventDefault()});document.addEventListener('dblclick',function(e){e.preventDefault()});
 document.addEventListener('pointerdown',function(){FC.audioUnlock()});
 })();</script>
 <!-- FC RPG エディタで作成。フォント: JFドットしののめ (JF-Dot-Shinonome) -->
